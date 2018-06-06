@@ -1,0 +1,106 @@
+#+TITLE: fnet
+#+DATE: \today
+#+AUTHOR: Kuan Yu \\ kuanyu@uni-potsdam.de
+#+OPTIONS: title:t date:t email:nil
+#+STARTUP: beamer
+#+LaTeX_CLASS: beamer
+#+LATEX_HEADER: \setbeamertemplate{footline}[frame number]
+#+LATEX_HEADER: \usepackage{minted}
+* complex output
+** stft                                                             :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+\begin{align*}
+fs &= 16,000\\
+x  &: \left[-1,1\right)^{3 fs}\\
+\end{align*}
+#+BEGIN_SRC python :eval never
+from scipy.signal import stft
+f, t, s = stft(x, fs)
+#+END_SRC
+\[s : \mathbb{C}^{129,376} \]
+** mel                                                              :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEGIN_SRC python :eval never
+plt.pcolormesh(t, np.log1p(f/700), np.log(np.abs(s)))
+#+END_SRC
+\includegraphics[width=\textwidth]{mel.png}
+** istft                                                            :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEGIN_SRC python :eval never
+from scipy.signal import istft
+t2, x2 = istft(s, fs)
+assert np.allclose(x, x2)
+#+END_SRC
+** frames vs samples                                                :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- predicting frames takes much fewer steps
+- an individual sample has no interpretable meaning
+- a model predicting samples has to model much more complicated dependencies across a much longer time
+** vocoder                                                          :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- most of the models we've seen has a trainable vocoder (wavenet, samplernn)
+- to reconstruct the samples from frames
+- which is unnecessary when we have complex-valued frames
+** complex network for speech                                       :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- [[https://www.isca-speech.org/archive/Interspeech_2016/pdfs/0300.PDF][_2016 Drude el al._]] ``inappropriate for speech enhancement''
+- [[http://www.cstr.ed.ac.uk/downloads/publications/2016/hu2016initial.pdf][_2016 Hu et al._]] ``initial investigation''
+- [[https://arxiv.org/abs/1704.08504][_2017 Fu el al._]] ``complex spectrogram enhancement''
+- [[https://arxiv.org/abs/1803.09946][_2018 Nakashika el al._]] ``complex-valued rbm''
+* adversarial network
+** objective                                                        :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- output expected complex-valued frames
+|          |      min |  max |     mean |
+|----------+----------+------+----------|
+| =s.real= |    -0.08 | 0.10 |     0.00 |
+| =s.imag= |    -0.14 | 0.12 |     0.00 |
+| =s.abs=  | 6.65^-09 | 0.14 | 0.17^-02 |
+- how to define the loss?
+** adversary                                                        :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+\begin{align*}
+\mathrm{frames}        &&s &: &\mathbb{C}^{f,t} &\\
+\mathrm{generator}     &&g &: &? &\to \mathbb{C}^{f,t}\\
+\mathrm{discriminator} &&d &: &\mathbb{C}^{f,t} &\to \{0,1\}\\
+\end{align*}
+- zero-sum game \(\operatorname{arg\,min_{g}\,max_{d}} v\left(g,d\right)\)
+- payoff \(v\left(g,d\right) = \mathbb{E}_{s \sim p_{data}} \log d\left(s\right) + \mathbb{E}_{s \sim p_{model}} \log\left(1 - d\left(s\right)\right)\)
+* attention
+** attenttion                                                       :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- lots of attention
+# local variables:
+# org-beamer-outline-frame-title: "outline"
+# end:
+* evaluation
+** problem                                                          :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- how to evaluate
+** baby steps                                                       :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- not to explode
+- to drop the loss
+- to output more than noises
