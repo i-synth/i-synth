@@ -180,13 +180,13 @@ src = np.load("trial/data/texts.npy")
 tgt = np.load("trial/data/grams.npy")
 tgt = np.concatenate((tgt.real, tgt.imag), -1)
 
-i = permute(len(texts))
+i = permute(len(src))
 src = src[i]
 tgt = tgt[i]
 del i
 
 src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
-m = model(len_cap= src.shape[1], dim_src= len(idx), src= src, tgt= tgt)
+m = model(len_cap= int(src.shape[1]), dim_src= len(idx), src= src, tgt= tgt)
 
 ############
 # training #
@@ -201,23 +201,16 @@ if ckpt:
     saver.restore(sess, ckpt)
 else:
     tf.global_variables_initializer().run()
-    wtr.add_graph(sess.graph)
-    for _ in range(3): sess.run(m.up)
-    meta = tf.RunMetadata()
-    sess.run(m.up, run_metadata= meta, options= tf.RunOptions(trace_level= tf.RunOptions.FULL_TRACE))
-    wtr.add_run_metadata(meta, "step")
-    del meta
 
 summ = tf.summary.merge((
     tf.summary.scalar('step_mse', m.mse)
     , tf.summary.scalar('step_mae', m.mae)))
 feed_eval = {m.dropout: 0}
 
-while True:
+for _ in range(5):
     for _ in tqdm(range(step_save), ncols= 70):
         sess.run(m.up)
         step = sess.run(m.step)
         if not (step % step_eval):
             wtr.add_summary(sess.run(summ, feed_eval), step)
     saver.save(sess, "trial/model/m", step)
-    write_trans("trial/pred/m{}".format(step))
