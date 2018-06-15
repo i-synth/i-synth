@@ -1,3 +1,12 @@
+def profile(path, sess, run, feed_dict= None, prerun= 3, tag= "step"):
+    import tensorflow as tf
+    for _ in range(prerun): sess.run(run, feed_dict)
+    meta = tf.RunMetadata()
+    sess.run(run, feed_dict, tf.RunOptions(trace_level= tf.RunOptions.FULL_TRACE), meta)
+    with tf.summary.FileWriter(path, sess.graph) as wtr:
+        wtr.add_run_metadata(meta, tag)
+
+
 def jagged_array(x, fill, shape, dtype):
     """-> np.ndarray; with jagged `x` trimmed and filled into `shape`."""
     import numpy as np

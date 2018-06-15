@@ -175,6 +175,7 @@ from utils import permute, batch
 tf.set_random_seed(0)
 
 
+path = expanduser("~/cache/tensorboard-logdir/i-synth")
 idx = np.load("trial/data/index.npy").item()
 src = np.load("trial/data/texts.npy")
 tgt = np.load("trial/data/grams.npy")
@@ -185,6 +186,12 @@ src = src[i]
 tgt = tgt[i]
 del i
 
+# from utils import profile
+# m = model(dim_src= len(idx))
+# with tf.Session() as sess:
+#     tf.global_variables_initializer().run()
+#     profile(join(path, "graph"), sess, m.up, {m.src: src[:batch_size], m.tgt: tgt[:batch_size]})
+
 src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
 m = model(len_cap= int(src.shape[1]), dim_src= len(idx), src= src, tgt= tgt)
 
@@ -192,7 +199,6 @@ m = model(len_cap= int(src.shape[1]), dim_src= len(idx), src= src, tgt= tgt)
 # training #
 ############
 
-path = expanduser("~/cache/tensorboard-logdir/i-synth")
 saver = tf.train.Saver()
 sess = tf.InteractiveSession()
 wtr = tf.summary.FileWriter(join(path, "trial{}".format(trial)))
