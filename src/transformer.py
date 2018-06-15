@@ -70,9 +70,10 @@ def multihead_attention(value, query, dim= 64, num_head= 8, bias= None, name= 'a
         return tf.concat(tf.unstack(tf.matmul(tf.nn.softmax(q), v)), -1)
 
 
-def model(tgt= None, dim_tgt= 258
-          , src= None, dim_src= 256, len_cap= None
-          , dim= 256,  dim_mid= 512,
+def model(len_cap= None
+          , src= None, dim_src= 256
+          , tgt= None, dim_tgt= 258
+          , dim= 256,  dim_mid= 512
           , num_head= 4, num_layer= 2
           , activation= tf.nn.relu
           , training= True
@@ -185,7 +186,7 @@ tgt = tgt[i]
 del i
 
 src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
-m = model(len_cap= src.shape[1], dim_src= len(idx), dim_tgt= tgt.shape[-1], src= src, tgt= tgt)
+m = model(len_cap= src.shape[1], dim_src= len(idx), src= src, tgt= tgt)
 
 ############
 # training #
