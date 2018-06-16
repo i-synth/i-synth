@@ -41,8 +41,9 @@ def multihead_attention(value, query, dim= 64, num_head= 8, mask= None, name= 'a
     dense = lambda x, d, name: tf.layers.dense(x, d, use_bias= False, name= name)
     split = lambda x: tf.split(x, num_head, -1)
     with tf.variable_scope(name):
-        v = tf.stack(split(dense(value, dim * num_head, 'v'))) # h,b,s,d
-        k = tf.stack(split(dense(value, dim * num_head, 'k'))) # h,b,s,d
+        v = k = tf.stack(split(value))
+        # v = tf.stack(split(dense(value, dim * num_head, 'v'))) # h,b,s,d
+        # k = tf.stack(split(dense(value, dim * num_head, 'k'))) # h,b,s,d
         q = tf.stack(split(dense(query, dim * num_head, 'q'))) # h,b,t,d
         a = tf.square(tf.matmul(q, k, transpose_b= True))      # h,b,t,s
         if mask is not None: a *= mask
