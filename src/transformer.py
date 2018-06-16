@@ -23,11 +23,6 @@ def normalize(x, axis= -1, eps= 1e-8, name= "normalize"):
         return (x - mean) * tf.rsqrt(var + eps * eps)
 
 
-def count(x, item, relation= tf.equal, axis= 0):
-    """counts `item` in tensor `x` across `axis` by `relation`."""
-    return tf.to_int32(tf.reduce_sum(tf.to_float(relation(x, item)), axis))
-
-
 def sinusoid(time, dim, freq= 1e-4, name= 'sinusoid', array= False):
     """returns a rank-2 tensor of shape `time, dim`, where each row
     corresponds to a time step and each column a sinusoid, with
@@ -91,14 +86,15 @@ def model(len_cap= None
     assert not dim % 2 and not dim % num_head
     self = Record(end= end)
     # trim `src` to the maximum valid index among the batch
+    count = lambda x: tf.reduce_sum(tf.to_int32(x), 0)
     with tf.variable_scope('src'):
         src = self.src = placeholder(tf.int32, (None, None), src)
-        len_src = 1 + count(count(src, end), tf.shape(src)[0], tf.not_equal)
+        len_src = 1 + count(tf.not_equal(count(tf.equal(src, end)), tf.shape(src)[0]))
         src = src[:,:len_src]
     # same for `tgt`, todo: keep track of valid length for secondary prediction
     with tf.variable_scope('tgt'):
         tgt = self.tgt = placeholder(tf.float32, (None, None, dim_tgt), tgt)
-        len_tgt = 1 + count(count(tgt, 'nan', tf.is_nan), tf.shape(tgt)[0], tf.not_equal)
+        len_tgt = 1 + count(tf.not_equal(count(tf.is_nan(tf.reduce_sum(tgt, -1))), tf.shape(tgt)[0]))
         tgt = tgt[:,:len_tgt]
         tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
         tgt, gold = tgt[:,:-1], tgt[:,1:]

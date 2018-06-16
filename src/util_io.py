@@ -2,7 +2,6 @@ from os.path import expanduser, join
 from scipy.io import wavfile
 from scipy.signal import stft, istft
 from util_np import np, r2c
-import matplotlib.pyplot as plt
 
 
 def normalize(text, uncase= True, translate= str.maketrans({
@@ -64,5 +63,6 @@ def save(path, x, fs= 22050):
 
 def plot(x, eps= 1e-8):
     """plots spectrogram."""
+    import matplotlib.pyplot as plt
     if np.iscomplexobj(x): x = np.abs(x)
     plt.pcolormesh(np.log(x.T + eps))
