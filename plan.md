@@ -12,11 +12,11 @@ R^{c,s} -> R^{2f,t}
 - f: number of frequency bins (2 * 129)
 - d: number of feature maps
 
-## encoder: conv1d
+## encoder
 
 R^{c,s} -> R^{d,s}
 
-## unfold: rnn with attention and teacher forcing
+## decoder
 
 R^{d,s} -> R^{d,t}
 
@@ -28,4 +28,4 @@ R^{d,s} -> R^{d,t}
 
 R^{d,t} -> R^{2f,t}
 
-- mean abs
+- square/absolute error

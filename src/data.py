@@ -2,19 +2,16 @@
 
 
 from functools import partial
-from load import load, load_meta, normalize
-from os.path import expanduser, join, getsize
-from utils import PointedIndex, jagged_array
-import numpy as np
+from os.path import getsize
+from util import comp, PointedIndex, encode
+from util_io import path, load_meta, load
+from util_np import np, jagged_array
 
 
-path = expanduser("~/data/LJSpeech-1.0")
-names, texts = load_meta(path)
-names = np.array(names)
-texts = np.array(list(map(normalize, texts)))
+names, texts = load_meta()
 
 # take the smallest 1/10 data
-sizes = np.array([getsize(join(path, "wavs", name + ".wav")) for name in names])
+sizes = np.array(list(map(comp(getsize, path), names)))
 sel = np.split(np.argsort(sizes), 10)[0]
 names = names[sel]
 texts = texts[sel]
@@ -23,18 +20,19 @@ chars = {char for text in texts for char in text}
 chars.remove("\n")
 chars.remove(" ")
 index = PointedIndex(" \n" + "".join(sorted(chars)))
+texts = list(map(partial(encode, index), texts))
 texts = jagged_array(
-    map(partial(map, index), texts)
+    texts
     , fill= index("\n")
     , shape= (len(texts), max(map(len, texts)))
     , dtype= np.uint8)
-texts = np.concatenate((np.zeros_like(texts[:,:1]), texts), -1)
 
-grams = list(map(partial(load, path), names))
+grams = list(map(comp(load, path), names))
+sizes = np.array(list(map(len, grams)))
 grams = jagged_array(
     grams
-    , fill= 0.0
-    , shape= (len(grams), max(map(len, grams)), 129)
+    , fill= complex('(nan+nanj)')
+    , shape= (len(grams), max(map(len, grams)), 128)
     , dtype= np.complex64)
 
 np.save("trial/data/index", index.vec)

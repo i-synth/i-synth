@@ -1,4 +1,4 @@
-from utils import Record
+from util import Record
 import numpy as np
 import tensorflow as tf
 
@@ -72,12 +72,12 @@ def multihead_attention(value, query, dim= 64, num_head= 8, bias= None, name= 'a
 
 def model(len_cap= None
           , src= None, dim_src= 256
-          , tgt= None, dim_tgt= 258
+          , tgt= None, dim_tgt= 256
           , dim= 256,  dim_mid= 512
           , num_head= 4, num_layer= 2
           , activation= tf.nn.relu
           , training= True
-          , dropout= 0.1
+          , dropout= 0.25
           , warmup= 4e3
           , end= 1):
     # src : ?, s
@@ -93,13 +93,15 @@ def model(len_cap= None
     # trim `src` to the maximum valid index among the batch
     with tf.variable_scope('src'):
         src = self.src = placeholder(tf.int32, (None, None), src)
-        len_src = count(count(src, end), tf.shape(src)[0], tf.not_equal) + 1
+        len_src = 1 + count(count(src, end), tf.shape(src)[0], tf.not_equal)
         src = src[:,:len_src]
-    # todo add length into for tgt
+    # same for `tgt`, todo: keep track of valid length for secondary prediction
     with tf.variable_scope('tgt'):
         tgt = self.tgt = placeholder(tf.float32, (None, None, dim_tgt), tgt)
-        len_tgt = tf.shape(tgt)[1] - 1
-        tgt, gold = tgt[:,:len_tgt], tgt[:,1:1+len_tgt]
+        len_tgt = 1 + count(count(tgt, 'nan', tf.is_nan), tf.shape(tgt)[0], tf.not_equal)
+        tgt = tgt[:,:len_tgt]
+        tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
+        tgt, gold = tgt[:,:-1], tgt[:,1:]
     # building blocks
     if training:
         with tf.variable_scope('train/'):
@@ -112,12 +114,11 @@ def model(len_cap= None
     attention = lambda v, q, **args: multihead_attention(
         value= v, query= q, dim= dim // num_head, num_head= num_head, **args)
     if len_cap: emb_pos = tf.constant(sinusoid(len_cap, dim, array= True), tf.float32, name= 'sinusoid')
-    init = tf.orthogonal_initializer()
     # construction
     with tf.variable_scope('encode'):
         with tf.variable_scope('embed'):
             pos = emb_pos[:len_src] if len_cap else sinusoid(len_src, dim)
-            emb = tf.get_variable('emb', (dim_src, dim), tf.float32, init)
+            emb = tf.get_variable('emb', (dim_src, dim), tf.float32)
             w = dropout(pos + tf.gather(normalize(emb), src))
         for i in range(num_layer):
             with tf.variable_scope("layer{}".format(i)):
@@ -139,13 +140,13 @@ def model(len_cap= None
                 h = tf.layers.dense(x, dim_mid, activation, name= 'relu')
                 h = tf.layers.dense(h, dim, name= 'linear')
                 x = normalize(x + dropout(h))
-        frame = tf.layers.dense(x, dim_tgt, name= 'frame')
+        frame = self.frame = tf.layers.dense(x, dim_tgt, name= 'frame')
     self.y = frame[:,-1]
     # done
     with tf.variable_scope('loss'):
         diff = gold - frame
-        self.mae = tf.reduce_mean(tf.abs(diff))
-        self.mse = tf.reduce_mean(tf.square(diff))
+        self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
+        self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
     if training:
         with tf.variable_scope('train/'):
             self.step = tf.train.get_or_create_global_step()
@@ -153,70 +154,5 @@ def model(len_cap= None
             self.lr = tf.placeholder_with_default(
                 (dim ** -0.5) * tf.minimum(step ** -0.5, step * (warmup ** -1.5))
                 , (), 'lr')
-            self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(self.mse, self.step)
+            self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(self.err1, self.step)
     return self
-
-
-########
-# main #
-########
-
-
-trial      = '00'
-batch_size = 2**4
-step_eval  = 2**7
-step_save  = 2**12
-ckpt       = None
-
-
-from os.path import expanduser, join
-from tqdm import tqdm
-from utils import permute, batch
-tf.set_random_seed(0)
-
-
-path = expanduser("~/cache/tensorboard-logdir/i-synth")
-idx = np.load("trial/data/index.npy").item()
-src = np.load("trial/data/texts.npy")
-tgt = np.load("trial/data/grams.npy")
-tgt = np.concatenate((tgt.real, tgt.imag), -1)
-
-i = permute(len(src))
-src = src[i]
-tgt = tgt[i]
-del i
-
-# from utils import profile
-# m = model(dim_src= len(idx))
-# with tf.Session() as sess:
-#     tf.global_variables_initializer().run()
-#     profile(join(path, "graph"), sess, m.up, {m.src: src[:batch_size], m.tgt: tgt[:batch_size]})
-
-src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
-m = model(len_cap= int(src.shape[1]), dim_src= len(idx), src= src, tgt= tgt)
-
-############
-# training #
-############
-
-saver = tf.train.Saver()
-sess = tf.InteractiveSession()
-wtr = tf.summary.FileWriter(join(path, "trial{}".format(trial)))
-
-if ckpt:
-    saver.restore(sess, ckpt)
-else:
-    tf.global_variables_initializer().run()
-
-summ = tf.summary.merge((
-    tf.summary.scalar('step_mse', m.mse)
-    , tf.summary.scalar('step_mae', m.mae)))
-feed_eval = {m.dropout: 0}
-
-for _ in range(5):
-    for _ in tqdm(range(step_save), ncols= 70):
-        sess.run(m.up)
-        step = sess.run(m.step)
-        if not (step % step_eval):
-            wtr.add_summary(sess.run(summ, feed_eval), step)
-    saver.save(sess, "trial/model/m", step)
