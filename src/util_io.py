@@ -47,18 +47,22 @@ def load(path, fs= 22050):
     """
     fs2, wav = wavfile.read(path)
     assert fs == fs2
-    ii = np.iinfo(wav.dtype)
-    wav = wav.astype(np.float) / max(abs(ii.min), abs(ii.max))
+    if np.issubdtype(wav.dtype, np.integer):
+        ii = np.iinfo(wav.dtype)
+        wav = wav.astype(np.float) / max(abs(ii.min), abs(ii.max))
     f, t, s = stft(wav, fs)
     return s[1:].T
 
 
-def save(path, x, fs= 22050):
+def save(path, x, fs= 22050, dtype= np.int16):
     """undoes `load`."""
     if not np.iscomplexobj(x): x = r2c(x)
     x = x.T
     t, wav = istft(np.concatenate((np.zeros_like(x[:1]), x)))
-    wavfile.write(path, fs, wav)
+    if np.issubdtype(dtype, np.integer):
+        ii = np.iinfo(dtype)
+        wav *= max(abs(ii.min), abs(ii.max))
+    wavfile.write(path, fs, wav.astype(dtype))
 
 
 def plot(x, eps= 1e-8):
