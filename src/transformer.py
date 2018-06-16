@@ -90,6 +90,11 @@ def model(len_cap= None
         dropout = lambda x: x
     attention = lambda v, q, **args: multihead_attention(
         value= v, query= q, dim= dim // num_head, num_head= num_head, **args)
+    forward = lambda x: tf.layers.dense(
+        tf.layers.dense(
+            x, dim_mid, activation, name= 'relu')
+        , dim, name= 'linear')
+    nrd = lambda x, y: normalize(x + dropout(y))
     if len_cap: emb_pos = tf.constant(sinusoid(len_cap, dim, array= True), tf.float32, name= 'sinusoid')
     # construction
     with tf.variable_scope('encode'):
@@ -99,24 +104,20 @@ def model(len_cap= None
             w = dropout(pos + tf.gather(normalize(emb), src))
         for i in range(num_layer):
             with tf.variable_scope("layer{}".format(i)):
-                w = normalize(w + dropout(attention(w, w)))
-                h = tf.layers.dense(w, dim_mid, activation, name= 'relu')
-                h = tf.layers.dense(h, dim, name= 'linear')
-                w = normalize(w + dropout(h))
+                w = nrd(w, attention(w, w))
+                w = nrd(w, forward(w))
     self.w, self.x = w, tgt
     with tf.variable_scope('decode'):
         with tf.variable_scope('embed'):
-            x = normalize(dropout(tf.layers.dense(tgt, dim)))
+            x = dropout(normalize(forward(tgt)))
         with tf.variable_scope('mask'):
             len_tgt = tf.shape(tgt)[1] # in case tgt is fed by user
             mask = tf.log(tf.linalg.LinearOperatorLowerTriangular(tf.ones((len_tgt, len_tgt))).to_dense())
         for i in range(num_layer):
             with tf.variable_scope("layer{}".format(i)):
-                x = normalize(x + dropout(attention(x, x, bias= mask, name= 'masked_attention')))
-                x = normalize(x + dropout(attention(w, x)))
-                h = tf.layers.dense(x, dim_mid, activation, name= 'relu')
-                h = tf.layers.dense(h, dim, name= 'linear')
-                x = normalize(x + dropout(h))
+                x = nrd(x, attention(x, x, bias= mask, name= 'masked_attention'))
+                x = nrd(x, attention(w, x))
+                x = nrd(x, forward(x))
         frame = self.frame = tf.layers.dense(x, dim_tgt, name= 'frame')
     self.y = frame[:,-1]
     # done
@@ -124,7 +125,7 @@ def model(len_cap= None
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
-        loss = self.err1 + tf.sqrt(self.err2)
+        loss = tf.sqrt(self.err2)
     if training:
         with tf.variable_scope('train/'):
             self.step = tf.train.get_or_create_global_step()
