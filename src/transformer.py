@@ -1,26 +1,7 @@
 from util import Record
+from util_tf import tf, placeholder, normalize
 import numpy as np
 import tensorflow as tf
-
-
-def placeholder(dtype, shape, x= None):
-    """returns a placeholder with `dtype` and `shape`.
-
-    if tensor `x` is given, converts and uses it as default.
-
-    """
-
-    if x is None:
-        return tf.placeholder(dtype, shape)
-    else:
-        return tf.placeholder_with_default(tf.cast(x, dtype), shape)
-
-
-def normalize(x, axis= -1, eps= 1e-8, name= "normalize"):
-    """returns a tensor from `x` scaled and centered across `axis`."""
-    with tf.variable_scope(name):
-        mean, var = tf.nn.moments(x, axis, keep_dims=True)
-        return (x - mean) * tf.rsqrt(var + eps * eps)
 
 
 def sinusoid(time, dim, freq= 1e-4, name= 'sinusoid', array= False):
