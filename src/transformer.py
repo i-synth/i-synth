@@ -75,7 +75,7 @@ def model(len_cap= None
     # same for `tgt`, todo: keep track of valid length for secondary prediction
     with tf.variable_scope('tgt'):
         tgt = self.tgt = placeholder(tf.float32, (None, None, dim_tgt), tgt)
-        len_tgt = 1 + count(tf.not_equal(count(tf.is_nan(tf.reduce_sum(tgt, -1))), tf.shape(tgt)[0]))
+        len_tgt = 1 + count(tf.not_equal(count(tf.is_nan(tgt[:,:,0])), tf.shape(tgt)[0]))
         tgt = tgt[:,:len_tgt]
         tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
         tgt, gold = tgt[:,:-1], tgt[:,1:]
@@ -124,6 +124,7 @@ def model(len_cap= None
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
+        loss = self.err1 + tf.sqrt(self.err2)
     if training:
         with tf.variable_scope('train/'):
             self.step = tf.train.get_or_create_global_step()
@@ -131,5 +132,5 @@ def model(len_cap= None
             self.lr = tf.placeholder_with_default(
                 (dim ** -0.5) * tf.minimum(step ** -0.5, step * (warmup ** -1.5))
                 , (), 'lr')
-            self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(self.err1, self.step)
+            self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(loss, self.step)
     return self

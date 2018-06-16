@@ -11,14 +11,13 @@ ckpt       = None
 from os.path import expanduser, join
 from tqdm import tqdm
 from transformer import model
-from util import PointedIndex, decode
 from util_np import np, permute, c2r, r2c
 from util_tf import tf, batch
 tf.set_random_seed(0)
 
 
 path = expanduser("~/cache/tensorboard-logdir/i-synth")
-idx = PointedIndex(np.load("trial/data/index.npy").item())
+idx = np.load("trial/data/index.npy").item()
 src = np.load("trial/data/texts.npy")
 tgt = np.load("trial/data/grams.npy")
 tgt = c2r(tgt)
@@ -35,7 +34,8 @@ del i
 #     profile(join(path, "graph"), sess, m.up, {m.src: src[:batch_size], m.tgt: tgt[:batch_size]})
 
 src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
-m = model(len_cap= int(src.shape[1]), dim_src= len(idx), src= src, tgt= tgt)
+m = model(dim_src= len(idx), len_cap= int(src.shape[1]), src= src, tgt= tgt)
+# m = model(dim_src= len(idx), training= False)
 
 ############
 # training #
