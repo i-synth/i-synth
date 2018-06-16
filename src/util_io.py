@@ -63,10 +63,3 @@ def save(path, x, fs= 22050, dtype= np.int16):
         ii = np.iinfo(dtype)
         wav *= max(abs(ii.min), abs(ii.max))
     wavfile.write(path, fs, wav.astype(dtype))
-
-
-def plot(x, eps= 1e-8):
-    """plots spectrogram."""
-    import matplotlib.pyplot as plt
-    if not np.iscomplexobj(x): x = r2c(x)
-    plt.pcolormesh(np.log(np.abs(x.T) + eps))
