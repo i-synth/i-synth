@@ -4,7 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def sinusoid(time, dim, freq= 1e-4, name= 'sinusoid', array= False):
+def sinusoid(time, dim, freq= 1e-4, name= 'sinusoid', scale= True, array= False):
     """returns a rank-2 tensor of shape `time, dim`, where each row
     corresponds to a time step and each column a sinusoid, with
     frequencies in a geometric progression from 1 to `freq`.
@@ -12,14 +12,18 @@ def sinusoid(time, dim, freq= 1e-4, name= 'sinusoid', array= False):
     """
     if array:
         a = (freq ** ((2 / dim) * np.arange(dim // 2))).reshape(-1, 1) @ np.arange(time).reshape(1, -1)
-        return np.concatenate((np.sin(a), np.cos(a)), -1).reshape(dim, time).T
+        s = np.concatenate((np.sin(a), np.cos(a)), -1).reshape(dim, time)
+        if scale: s *= dim ** -0.5
+        return s.T
     with tf.variable_scope(name):
         a = tf.reshape(
             freq ** ((2 / dim) * tf.range(dim // 2, dtype= tf.float32))
             , (-1, 1)) @ tf.reshape(
                 tf.range(tf.cast(time, tf.float32), dtype= tf.float32)
                 , (1, -1))
-        return tf.transpose(tf.reshape(tf.concat((tf.sin(a), tf.cos(a)), -1), (dim, time)))
+        s = tf.reshape(tf.concat((tf.sin(a), tf.cos(a)), -1), (dim, time))
+        if scale: s *= dim ** -0.5
+        return tf.transpose(s)
 
 
 def multihead_attention(value, query, dim= 64, num_head= 8, bias= None, name= 'attention'):
@@ -53,7 +57,7 @@ def model(len_cap= None
           , num_head= 4, num_layer= 2
           , activation= tf.nn.relu
           , training= True
-          , dropout= 0.25
+          , dropout= 0.1
           , warmup= 4e3
           , end= 1):
     # src : ?, s
@@ -101,7 +105,7 @@ def model(len_cap= None
         with tf.variable_scope('embed'):
             pos = emb_pos[:len_src] if len_cap else sinusoid(len_src, dim)
             emb = tf.get_variable('emb', (dim_src, dim), tf.float32)
-            w = dropout(pos + tf.gather(normalize(emb), src))
+            w = normalize(dropout(pos + tf.gather(emb, src)))
         for i in range(num_layer):
             with tf.variable_scope("layer{}".format(i)):
                 w = nrd(w, attention(w, w))
@@ -109,7 +113,7 @@ def model(len_cap= None
     self.w, self.x = w, tgt
     with tf.variable_scope('decode'):
         with tf.variable_scope('embed'):
-            x = dropout(normalize(forward(tgt)))
+            x = normalize(dropout(forward(tgt)))
         with tf.variable_scope('mask'):
             len_tgt = tf.shape(tgt)[1] # in case tgt is fed by user
             mask = tf.log(tf.linalg.LinearOperatorLowerTriangular(tf.ones((len_tgt, len_tgt))).to_dense())
@@ -125,7 +129,8 @@ def model(len_cap= None
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
-        loss = tf.sqrt(self.err2)
+        # loss = tf.sqrt(self.err2)
+        loss = self.err2
     if training:
         with tf.variable_scope('train/'):
             self.step = tf.train.get_or_create_global_step()

@@ -11,16 +11,17 @@ ckpt       = None
 from os.path import expanduser, join
 from tqdm import tqdm
 from transformer import model
-from util_np import np, permute, c2r, r2c
+from util_io import save
+from util_np import np, permute, c2r
 from util_tf import tf, batch
 tf.set_random_seed(0)
-
 
 path = expanduser("~/cache/tensorboard-logdir/i-synth")
 idx = np.load("trial/data/index.npy").item()
 src = np.load("trial/data/texts.npy")
 tgt = np.load("trial/data/grams.npy")
 tgt = c2r(tgt)
+s,t = src[5:6], tgt[5:6]
 
 i = permute(len(src))
 src = src[i]
@@ -54,6 +55,7 @@ summ = tf.summary.merge((
     tf.summary.scalar('step_err1', m.err1)
     , tf.summary.scalar('step_err2', m.err2)))
 feed_eval = {m.dropout: 0}
+feed_pred = {m.dropout: 0, m.src: s, m.tgt: t}
 
 for _ in range(5):
     for _ in tqdm(range(step_save), ncols= 70):
@@ -62,3 +64,4 @@ for _ in range(5):
         if not (step % step_eval):
             wtr.add_summary(sess.run(summ, feed_eval), step)
     saver.save(sess, "trial/model/m", step)
+    save("trial/pred/{}.wav".format(step), m.frame.eval(feed_pred)[0])

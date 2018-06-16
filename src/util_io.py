@@ -64,5 +64,5 @@ def save(path, x, fs= 22050):
 def plot(x, eps= 1e-8):
     """plots spectrogram."""
     import matplotlib.pyplot as plt
-    if np.iscomplexobj(x): x = np.abs(x)
-    plt.pcolormesh(np.log(x.T + eps))
+    if not np.iscomplexobj(x): x = r2c(x)
+    plt.pcolormesh(np.log(np.abs(x.T) + eps))
