@@ -63,5 +63,5 @@ for _ in range(5):
         step = sess.run(m.step)
         if not (step % step_eval):
             wtr.add_summary(sess.run(summ, feed_eval), step)
-    saver.save(sess, "trial/model/m", step)
-    save("trial/pred/{}.wav".format(step), m.frame.eval(feed_pred)[0])
+    saver.save(sess, "trial/model/m{}".format(trial), step)
+    save("trial/pred/{}_{}.wav".format(step, trial), m.frame.eval(feed_pred)[0])

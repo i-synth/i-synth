@@ -32,8 +32,9 @@ sizes = np.array(list(map(len, grams)))
 grams = jagged_array(
     grams
     , fill= complex('(nan+nanj)')
-    , shape= (len(grams), max(map(len, grams)), 128)
+    , shape= (len(grams), max(map(len, grams)) + 1, 128)
     , dtype= np.complex64)
+grams = np.concatenate((np.zeros_like(grams[:,:1,:]), grams), 1)
 
 np.save("trial/data/index", index.vec)
 np.save("trial/data/texts", texts)

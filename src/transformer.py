@@ -69,27 +69,29 @@ def model(len_cap= None
     # tgt history, index x : ?, t
     # current tgt, logit y : ?, dim_tgt
     assert not dim % 2 and not dim % num_head
-    self = Record(end= end)
-    # trim `src` to the maximum valid index among the batch
-    count = lambda x: tf.reduce_sum(tf.to_int32(x), 0)
+    self = Record()
+    # trim `src` to the maximum valid index among the batch, plus one for padding
+    sum_any = lambda x: tf.reduce_sum(tf.to_int32(tf.reduce_any(x, 0)))
     with tf.variable_scope('src'):
+        end = self.end = tf.constant(end, tf.int32, (), 'end')
         src = self.src = placeholder(tf.int32, (None, None), src)
-        len_src = 1 + count(tf.not_equal(count(tf.equal(src, end)), tf.shape(src)[0]))
+        len_src = sum_any(tf.not_equal(src, end)) + 1
         src = src[:,:len_src]
-    # same for `tgt`, todo: keep track of valid length for secondary prediction
+    # same for `tgt`
     with tf.variable_scope('tgt'):
         tgt = self.tgt = placeholder(tf.float32, (None, None, dim_tgt), tgt)
-        len_tgt = 1 + count(tf.not_equal(count(tf.is_nan(tgt[:,:,0])), tf.shape(tgt)[0]))
+        end = tf.is_nan(tgt[:,:,0])
+        len_tgt = sum_any(~ end) + 1
         tgt = tgt[:,:len_tgt]
         tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
-        tgt, gold = tgt[:,:-1], tgt[:,1:]
+        tgt, end, gold = tgt[:,:-1], end[:,:len_tgt-1], tgt[:,1:]
     # building blocks
+    with tf.variable_scope('train/'):
+        self.dropout = tf.placeholder_with_default(dropout, (), 'dropout')
     if training:
-        with tf.variable_scope('train/'):
-            self.dropout = tf.placeholder_with_default(dropout, (), 'dropout')
-            def dropout(x, keep = 1.0 - self.dropout):
-                with tf.variable_scope('dropout'):
-                    return tf.nn.dropout(x, keep, (tf.shape(x)[0], 1, dim))
+        def dropout(x, keep = 1.0 - self.dropout):
+            with tf.variable_scope('dropout'):
+                return tf.nn.dropout(x, keep, (tf.shape(x)[0], 1, dim))
     else:
         dropout = lambda x: x
     attention = lambda v, q, **args: multihead_attention(
@@ -122,14 +124,18 @@ def model(len_cap= None
                 x = nrd(x, attention(x, x, bias= mask, name= 'masked_attention'))
                 x = nrd(x, attention(w, x))
                 x = nrd(x, forward(x))
+        close = self.close = tf.squeeze(tf.layers.dense(x, 1, name= 'close'), -1)
         frame = self.frame = tf.layers.dense(x, dim_tgt, name= 'frame')
     self.y = frame[:,-1]
+    self.z = 0.0 < close[:,-1]
     # done
     with tf.variable_scope('loss'):
+        self.err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
+            logits= close, labels= tf.to_float(end)))
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
-        loss = self.err2
+        loss = self.err0 + self.err2
     if training:
         with tf.variable_scope('train/'):
             self.step = tf.train.get_or_create_global_step()
@@ -139,3 +145,31 @@ def model(len_cap= None
                 , (), 'lr')
             self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(loss, self.step)
     return self
+
+
+def synth_batch(sess, m, src, len_cap= 256):
+    # todo test this
+    w = sess.run(m,w, {m.src: src, m.dropout: 0})
+    x = np.zeros((len(src), len_cap, int(m.frame.shape[-1])), np.float32)
+    acc, idx = [], []
+    for i in range(1, len_cap):
+        y, z = sess.run((m.y, m.z), {m.w: w, m.x: x[:,:i], m.dropout: 0})
+        x[:,i] = y
+        if z.any():
+            for k, j in enumerate(np.flatnonzero(z)):
+                acc.append(x[j,1:i])
+                idx.append(j - k)
+            if z.all(): break
+            w = w[~z]
+            x = x[~z]
+    res = []
+    for i, x in zip(idx[::-1], acc[::-1]):
+        res.insert(i, x)
+    return res
+
+
+def synth(sess, m, src, batch_size= 32, len_cap= 256):
+    res, rng = [], range(0, len(src) + batch_size, batch_size)
+    for i, j in zip(rng, rng[1:]):
+        res.extend(synth_batch(sess, m, src[i:j]))
+    return res

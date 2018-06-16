@@ -61,4 +61,5 @@ R^{d} -> R^{2f}
 
 - complex algebra
 - inspect transformer and optimize attention
+- positional encoding for frames
 - convolution with pooling to reduce input
