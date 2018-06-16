@@ -129,7 +129,6 @@ def model(len_cap= None
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
-        # loss = tf.sqrt(self.err2)
         loss = self.err2
     if training:
         with tf.variable_scope('train/'):

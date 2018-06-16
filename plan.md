@@ -28,4 +28,4 @@ R^{d,s} -> R^{d,t}
 
 R^{d,t} -> R^{2f,t}
 
-- square/absolute error
+- square error
