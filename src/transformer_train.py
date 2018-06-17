@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-trial      = '00'
+trial      = '01'
 batch_size = 2**4
 step_eval  = 2**7
 step_save  = 2**12
@@ -52,7 +52,8 @@ else:
     tf.global_variables_initializer().run()
 
 summ = tf.summary.merge((
-    tf.summary.scalar('step_err1', m.err1)
+    tf.summary.scalar('step_err0', m.err0)
+    , tf.summary.scalar('step_err1', m.err1)
     , tf.summary.scalar('step_err2', m.err2)))
 feed_eval = {m.dropout: 0}
 feed_pred = {m.dropout: 0, m.src: s, m.tgt: t}
@@ -63,5 +64,5 @@ for _ in range(5):
         step = sess.run(m.step)
         if not (step % step_eval):
             wtr.add_summary(sess.run(summ, feed_eval), step)
-    saver.save(sess, "trial/model/m{}".format(trial), step)
     save("trial/pred/{}_{}.wav".format(step, trial), m.frame.eval(feed_pred)[0])
+saver.save(sess, "trial/model/m{}".format(trial), step)
