@@ -84,20 +84,20 @@ def model(len_cap= None
     assert not dim % 2 and not dim % num_head
     self = Record()
     # trim `src` to the maximum valid index among the batch, plus one for padding
-    sum_any = lambda x: tf.reduce_sum(tf.to_int32(tf.reduce_any(x, 0)))
+    count_not_all = lambda x: tf.reduce_sum(tf.to_int32(~ tf.reduce_all(x, 0)))
     with tf.variable_scope('src'):
         end = self.end = tf.constant(end, tf.int32, (), 'end')
         src = self.src = placeholder(tf.int32, (None, None), src)
-        len_src = sum_any(tf.not_equal(src, end)) + 1
+        len_src = count_not_all(tf.equal(src, end)) + 1
         src = src[:,:len_src]
     # same for `tgt`
     with tf.variable_scope('tgt'):
         tgt = self.tgt = placeholder(tf.float32, (None, None, dim_tgt), tgt)
-        end = tf.is_nan(tgt[:,:,0])
-        len_tgt = sum_any(~ end) + 1
+        ended = tf.is_nan(tgt[:,:,0])
+        len_tgt = count_not_all(ended) + 1
         tgt = tgt[:,:len_tgt]
         tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
-        tgt, end, gold = tgt[:,:-1], end[:,:len_tgt-1], tgt[:,1:]
+        tgt, gold, ended = tgt[:,:-1], tgt[:,1:], ended[:,1:len_tgt]
     # building blocks
     with tf.variable_scope('dropout'):
         self.dropout = placeholder(tf.float32, (), dropout)
@@ -146,7 +146,7 @@ def model(len_cap= None
     # done
     with tf.variable_scope('loss'):
         self.err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-            logits= close, labels= tf.to_float(end)))
+            logits= close, labels= tf.to_float(ended)))
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))

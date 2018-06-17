@@ -28,15 +28,19 @@ src = src[i]
 tgt = tgt[i]
 del i
 
+# # for testing
+# m = model(dim_src= len(idx), training= False)
+
+# # for profiling
 # from util_tf import profile
 # m = model(dim_src= len(idx))
 # with tf.Session() as sess:
 #     tf.global_variables_initializer().run()
 #     profile(join(path, "graph"), sess, m.up, {m.src: src[:batch_size], m.tgt: tgt[:batch_size]})
 
+# for training
 src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
 m = model(dim_src= len(idx), len_cap= int(src.shape[1]), src= src, tgt= tgt)
-# m = model(dim_src= len(idx), training= False)
 
 ############
 # training #
