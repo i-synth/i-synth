@@ -20,16 +20,16 @@ def batch(data, batch_size, shuffle= 1e4, repeat= True, name= "batch"):
                  .get_next()
 
 
-def placeholder(dtype, shape, x= None):
+def placeholder(dtype, shape, x= None, name= None):
     """returns a placeholder with `dtype` and `shape`.
 
     if tensor `x` is given, converts and uses it as default.
 
     """
 
-    if x is None: return tf.placeholder(dtype, shape)
+    if x is None: return tf.placeholder(dtype, shape, name)
     if dtype != x.dtype: x = tf.cast(x, dtype)
-    return tf.placeholder_with_default(tf.cast(x, dtype), shape)
+    return tf.placeholder_with_default(tf.cast(x, dtype), shape, name)
 
 
 def normalize(x, axis= -1, eps= 1e-8, name= "normalize"):

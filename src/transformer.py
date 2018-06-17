@@ -99,13 +99,13 @@ def model(len_cap= None
         tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
         tgt, end, gold = tgt[:,:-1], end[:,:len_tgt-1], tgt[:,1:]
     # building blocks
-    self.dropout = tf.placeholder_with_default(dropout, (), 'dropout')
-    if training:
-        def dropout(x, keep = 1.0 - self.dropout):
-            with tf.variable_scope('dropout'):
-                return tf.nn.dropout(x, keep, (tf.shape(x)[0], 1, dim))
-    else:
-        dropout = lambda x: x
+    with tf.variable_scope('dropout'):
+        self.dropout = placeholder(tf.float32, (), dropout)
+        keep = 1.0 - self.dropout
+    def dropout(x, keep= keep):
+        with tf.variable_scope('dropout'):
+            return tf.nn.dropout(x, keep, (tf.shape(x)[0], 1, dim))
+    if not training: dropout = lambda x: x
     attention = lambda v, q, **args: multihead_attention(
         value= v, query= q, dim= dim // num_head, num_head= num_head, softmax= softmax, **args)
     forward = lambda x: tf.layers.dense(
@@ -137,10 +137,12 @@ def model(len_cap= None
                 x = nrd(x, attention(x, x, mask= mask, name= 'masked_attention'))
                 x = nrd(x, attention(w, x))
                 x = nrd(x, forward(x))
-        close = self.close = tf.squeeze(tf.layers.dense(x, 1, name= 'close'), -1)
-        frame = self.frame = tf.layers.dense(x, dim_tgt, name= 'frame')
-    self.y = frame[:,-1]
-    self.z = 0.0 < close[:,-1]
+    with tf.variable_scope('close'):
+        close = self.close = tf.squeeze(tf.layers.dense(x, 1), -1)
+        self.z = 0.0 < close[:,-1]
+    with tf.variable_scope('frame'):
+        frame = self.frame = tf.layers.dense(x, dim_tgt)
+        self.y = frame[:,-1]
     # done
     with tf.variable_scope('loss'):
         self.err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
@@ -150,11 +152,12 @@ def model(len_cap= None
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
         loss = self.err0 + self.err2
     if training:
-        self.step = tf.train.get_or_create_global_step()
-        step = tf.to_float(self.step + 1)
-        self.lr = tf.placeholder_with_default(
-            (dim ** -0.5) * tf.minimum(step ** -0.5, step * (warmup ** -1.5))
-            , (), 'lr')
+        with tf.variable_scope('lr'):
+            self.step = tf.train.get_or_create_global_step()
+            step = tf.to_float(self.step + 1)
+            self.lr = tf.placeholder_with_default(
+                (dim ** -0.5) * tf.minimum(step ** -0.5, step * (warmup ** -1.5))
+                , (), 'lr')
         self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(loss, self.step)
     return self
 
