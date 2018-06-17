@@ -28,8 +28,11 @@ def placeholder(dtype, shape, x= None, name= None):
     """
 
     if x is None: return tf.placeholder(dtype, shape, name)
-    if dtype != x.dtype: x = tf.cast(x, dtype)
-    return tf.placeholder_with_default(tf.cast(x, dtype), shape, name)
+    try:
+        x = tf.convert_to_tensor(x, dtype)
+    except ValueError:
+        x = tf.cast(x, dtype)
+    return tf.placeholder_with_default(x, shape, name)
 
 
 def normalize(x, axis= -1, eps= 1e-8, name= "normalize"):
