@@ -138,7 +138,8 @@ def model(len_cap= None
                 x = nrd(x, attention(w, x))
                 x = nrd(x, forward(x))
     with tf.variable_scope('close'):
-        close = self.close = tf.squeeze(tf.layers.dense(x, 1), -1)
+        # todo desgin this
+        close = self.close = tf.squeeze(tf.layers.dense(tf.layers.dense(x, dim, activation), 1), -1)
         self.z = 0.0 < close[:,-1]
     with tf.variable_scope('frame'):
         frame = self.frame = tf.layers.dense(x, dim_tgt)
@@ -150,7 +151,7 @@ def model(len_cap= None
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
-        loss = self.err0 + self.err2
+        loss = self.err0 + self.err2 * 1e2
     if training:
         with tf.variable_scope('lr'):
             self.step = tf.train.get_or_create_global_step()
@@ -163,8 +164,7 @@ def model(len_cap= None
 
 
 def synth_batch(sess, m, src, len_cap= 256):
-    # todo test this
-    w = sess.run(m,w, {m.src: src, m.dropout: 0})
+    w = sess.run(m.w, {m.src: src, m.dropout: 0})
     x = np.zeros((len(src), len_cap, int(m.frame.shape[-1])), np.float32)
     acc, idx = [], []
     for i in range(1, len_cap):
@@ -174,17 +174,17 @@ def synth_batch(sess, m, src, len_cap= 256):
             for k, j in enumerate(np.flatnonzero(z)):
                 acc.append(x[j,1:i])
                 idx.append(j - k)
-            if z.all(): break
             w = w[~z]
             x = x[~z]
-    res = []
+            if z.all(): break
+    res = list(x[:,1:])
     for i, x in zip(idx[::-1], acc[::-1]):
         res.insert(i, x)
     return res
 
 
-def synth(sess, m, src, batch_size= 32, len_cap= 256):
+def synth(sess, m, src, len_cap= 256, batch_size= 32):
     res, rng = [], range(0, len(src) + batch_size, batch_size)
     for i, j in zip(rng, rng[1:]):
-        res.extend(synth_batch(sess, m, src[i:j]))
+        res.extend(synth_batch(sess, m, src[i:j], len_cap))
     return res
