@@ -26,7 +26,7 @@ def sinusoid(time, dim, freq= 1e-4, name= 'sinusoid', scale= True, array= False)
         return tf.transpose(s)
 
 
-def multihead_attention(value, query, dim= 64, num_head= 8, bias= None, name= 'attention'):
+def multihead_attention(value, query, dim= 64, num_head= 8, softmax= True, mask= None, name= 'attention'):
     """computes multi-head attention from `value` and `query` tensors.
 
     with batch size `b`, time steps `s, t`, dimensions `k, q`
@@ -34,20 +34,32 @@ def multihead_attention(value, query, dim= 64, num_head= 8, bias= None, name= 'a
     - value : b,s,k
     - query : b,t,q
 
-    the returned tensor has shape `b, t, dim * num_head`, and `bias`
+    the returned tensor has shape `b, t, dim * num_head`, and `mask`
     when supplied must have shape compatible to `num_head, b, t, s`.
 
     """
     dense = lambda x, d, name: tf.layers.dense(x, d, use_bias= False, name= name)
     split = lambda x: tf.split(x, num_head, -1)
+    # v : h,b,s,d
+    # k : h,b,s,d
+    # q : h,b,t,d
+    # a : h,b,t,s
     with tf.variable_scope(name):
-        v = tf.stack(split(dense(value, dim * num_head, 'v'))) # h,b,s,d
-        k = tf.stack(split(dense(value, dim * num_head, 'k'))) # h,b,s,d
-        q = tf.stack(split(dense(query, dim * num_head, 'q'))) # h,b,t,d
-        q = (dim ** -0.5) * tf.matmul(q, k, transpose_b= True) # h,b,t,s
-        if bias is not None: q += bias
-        # todo try square and normalize instead of softmax
-        return tf.concat(tf.unstack(tf.matmul(tf.nn.softmax(q), v)), -1)
+        q = tf.stack(split(dense(query, dim * num_head, 'q')))
+        if softmax:
+            v = tf.stack(split(dense(value, dim * num_head, 'v')))
+            k = tf.stack(split(dense(value, dim * num_head, 'k')))
+            a = tf.matmul(q, k, transpose_b= True)
+            a *= (dim ** -0.5)
+            if mask is not None: a += mask
+            a = tf.nn.softmax(a)
+        else:
+            v = k = tf.stack(split(value))
+            a = tf.matmul(q, k, transpose_b= True)
+            if mask is not None: a *= mask
+            a = tf.square(a)
+            a /= tf.reduce_sum(a, -1, True) + 1e-8
+        return tf.concat(tf.unstack(a @ v), -1)
 
 
 def model(len_cap= None
@@ -55,6 +67,7 @@ def model(len_cap= None
           , tgt= None, dim_tgt= 256
           , dim= 256,  dim_mid= 512
           , num_head= 4, num_layer= 2
+          , softmax= True
           , activation= tf.nn.relu
           , training= True
           , dropout= 0.1
@@ -86,8 +99,7 @@ def model(len_cap= None
         tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
         tgt, end, gold = tgt[:,:-1], end[:,:len_tgt-1], tgt[:,1:]
     # building blocks
-    with tf.variable_scope('train/'):
-        self.dropout = tf.placeholder_with_default(dropout, (), 'dropout')
+    self.dropout = tf.placeholder_with_default(dropout, (), 'dropout')
     if training:
         def dropout(x, keep = 1.0 - self.dropout):
             with tf.variable_scope('dropout'):
@@ -95,7 +107,7 @@ def model(len_cap= None
     else:
         dropout = lambda x: x
     attention = lambda v, q, **args: multihead_attention(
-        value= v, query= q, dim= dim // num_head, num_head= num_head, **args)
+        value= v, query= q, dim= dim // num_head, num_head= num_head, softmax= softmax, **args)
     forward = lambda x: tf.layers.dense(
         tf.layers.dense(
             x, dim_mid, activation, name= 'relu')
@@ -109,7 +121,7 @@ def model(len_cap= None
             emb = tf.get_variable('emb', (dim_src, dim), tf.float32)
             w = normalize(dropout(pos + tf.gather(emb, src)))
         for i in range(num_layer):
-            with tf.variable_scope("layer{}".format(i)):
+            with tf.variable_scope("layer{}".format(i + 1)):
                 w = nrd(w, attention(w, w))
                 w = nrd(w, forward(w))
     self.w, self.x = w, tgt
@@ -118,10 +130,11 @@ def model(len_cap= None
             x = normalize(dropout(forward(tgt)))
         with tf.variable_scope('mask'):
             len_tgt = tf.shape(tgt)[1] # in case tgt is fed by user
-            mask = tf.log(tf.linalg.LinearOperatorLowerTriangular(tf.ones((len_tgt, len_tgt))).to_dense())
+            mask = tf.linalg.LinearOperatorLowerTriangular(tf.ones((len_tgt, len_tgt))).to_dense()
+            if softmax: mask = tf.log(mask)
         for i in range(num_layer):
-            with tf.variable_scope("layer{}".format(i)):
-                x = nrd(x, attention(x, x, bias= mask, name= 'masked_attention'))
+            with tf.variable_scope("layer{}".format(i + 1)):
+                x = nrd(x, attention(x, x, mask= mask, name= 'masked_attention'))
                 x = nrd(x, attention(w, x))
                 x = nrd(x, forward(x))
         close = self.close = tf.squeeze(tf.layers.dense(x, 1, name= 'close'), -1)
@@ -137,13 +150,12 @@ def model(len_cap= None
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
         loss = self.err0 + self.err2
     if training:
-        with tf.variable_scope('train/'):
-            self.step = tf.train.get_or_create_global_step()
-            step = tf.to_float(self.step + 1)
-            self.lr = tf.placeholder_with_default(
-                (dim ** -0.5) * tf.minimum(step ** -0.5, step * (warmup ** -1.5))
-                , (), 'lr')
-            self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(loss, self.step)
+        self.step = tf.train.get_or_create_global_step()
+        step = tf.to_float(self.step + 1)
+        self.lr = tf.placeholder_with_default(
+            (dim ** -0.5) * tf.minimum(step ** -0.5, step * (warmup ** -1.5))
+            , (), 'lr')
+        self.up = tf.train.AdamOptimizer(self.lr, 0.9, 0.98, 1e-9).minimize(loss, self.step)
     return self
 
 
