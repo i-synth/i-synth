@@ -26,7 +26,6 @@ def placeholder(dtype, shape, x= None, name= None):
     if tensor `x` is given, converts and uses it as default.
 
     """
-
     if x is None: return tf.placeholder(dtype, shape, name)
     try:
         x = tf.convert_to_tensor(x, dtype)

@@ -5,7 +5,7 @@ from util_np import np, r2c
 
 
 def normalize(text, uncase= True, translate= str.maketrans({
-        # inconsistant
+        # inconsistent
         "’": "'"
         , "“": '"', "”": '"'
         , "[": "(", "]": ")"
