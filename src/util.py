@@ -97,32 +97,3 @@ class PointedIndex:
     @property
     def nil(self):
         return self._nil
-
-
-def encode(index, sent, end= "\n", start= " "):
-    """-> list int
-
-    encodes `sent : str` according to `index : PointedIndex`.
-
-    ensures that it starts with `start` and ends with `end`.
-
-    """
-    if not sent.startswith(start): sent = start + sent
-    if not sent.endswith(end): sent = sent + end
-    return list(map(index, sent))
-
-
-def decode(index, idxs, end= "\n", sep= ""):
-    """-> str
-
-    decodes `idxs : seq int` according to `index : PointedIndex`.
-
-    stops at `end` and joins the results with `sep`.
-
-    """
-    end = index(end)
-    tgt = []
-    for idx in idxs:
-        if idx == end: break
-        tgt.append(index[idx])
-    return sep.join(tgt)

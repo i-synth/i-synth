@@ -4,7 +4,12 @@ from scipy.signal import stft, istft
 from util_np import np, r2c
 
 
-def normalize(text, uncase= True, translate= str.maketrans({
+def path(name, folder= "~/data/LJSpeech-1.0"):
+    """returns the absolute path for LJSpeech audio with `name`."""
+    return join(expanduser(folder), "wavs", name + ".wav")
+
+
+def normalize(text, padl= " ", padr= "\n", uncase= True, translate= str.maketrans({
         # inconsistent
         "’": "'"
         , "“": '"', "”": '"'
@@ -15,12 +20,10 @@ def normalize(text, uncase= True, translate= str.maketrans({
         # just to make it ascii
         , "ü": "ue"})):
     if uncase: text = text.lower()
-    return text.translate(translate)
-
-
-def path(name, folder= "~/data/LJSpeech-1.0"):
-    """returns the absolute path for LJSpeech audio with `name`."""
-    return join(expanduser(folder), "wavs", name + ".wav")
+    text = text.translate(translate)
+    if not text.startswith(padl): text = padl + text
+    if not text.endswith(padr): text = text + padr
+    return text
 
 
 def load_meta(path= "~/data/LJSpeech-1.0", filename= "metadata.csv", sep= "|", normalize= normalize):

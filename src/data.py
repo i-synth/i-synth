@@ -3,7 +3,7 @@
 
 from functools import partial
 from os.path import getsize
-from util import comp, PointedIndex, encode
+from util import comp, PointedIndex
 from util_io import path, load_meta, load
 from util_np import np, jagged_array
 
@@ -20,7 +20,7 @@ chars = {char for text in texts for char in text}
 chars.remove("\n")
 chars.remove(" ")
 index = PointedIndex(" \n" + "".join(sorted(chars)))
-texts = list(map(partial(encode, index), texts))
+texts = list(map(comp(list, partial(map, index)), texts))
 texts = jagged_array(
     texts
     , fill= index("\n")
