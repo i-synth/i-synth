@@ -1,3 +1,6 @@
+from functools import partial
+
+
 def comp(g, f, *fs):
     """(b -> c) -> (a -> b) -> (a -> c)"""
     if fs: f = comp(f, *fs)

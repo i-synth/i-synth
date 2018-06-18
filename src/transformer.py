@@ -1,7 +1,6 @@
 from util import Record
 from util_tf import tf, placeholder, normalize
 import numpy as np
-import tensorflow as tf
 
 
 def sinusoid(time, dim, freq= 1e-4, name= 'sinusoid', scale= True, array= False):
