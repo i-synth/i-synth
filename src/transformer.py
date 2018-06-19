@@ -72,16 +72,53 @@ def model(len_cap= None
           , dropout= 0.1
           , warmup= 4e3
           , end= 1):
-    # src : ?, s
-    # tgt : ?, t
-    # src should be padded at the end (with `end`)
-    #
-    # as an autoregressive model, this is a function : w, x -> y
-    # encoded src, dense w : ?, s, dim
-    # tgt history, index x : ?, t
-    # current tgt, logit y : ?, dim_tgt
+    """-> Record, with the following fields of tensors
+
+    dropout : f32 ()              dropout rate, has no effect if not `training`
+        end : i32 ()              end padding for `src`
+        src : i32 (b, s)          source feed, in range `[0, dim_src)`
+        tgt : f32 (b, t, dim_tgt) target feed, padded at the end with `nan`
+      frame : f32 (b, t, dim_tgt) frame prediction
+      close : f32 (b, t)          close prediction, aka end of frames
+       err0 : f32 ()              close prediction loss
+       err1 : f32 ()              frame prediction l1 loss
+       err2 : f32 ()              frame prediction l2 loss
+
+    and as an autoregressive model : w, x -> y, z
+
+    w : f32  (b, s, dim)     encoded `src`
+    x : f32  (b, ?, dim_tgt) target feed for the current prediction
+    y : f32  (b, dim_tgt)    current frame prediction
+    z : bool (b,)            current close prediction
+
+    and if `training`
+
+    step : i64 () global update step
+      lr : f32 () learning rate for the current step
+      up :        update operation
+
+    setting `len_cap` makes it more efficient for training.  you won't
+    be able to feed it longer sequences, but it doesn't affect any
+    model parameters, so you can build another without `len_cap`
+    reusing all variables.
+
+    """
     assert not dim % 2 and not dim % num_head
     self = Record()
+    with tf.variable_scope('dropout'):
+        self.dropout = placeholder(tf.float32, (), dropout)
+        keep = 1.0 - self.dropout
+    def dropout(x, keep= keep):
+        with tf.variable_scope('dropout'):
+            return tf.nn.dropout(x, keep, (tf.shape(x)[0], 1, dim))
+    if not training: dropout = lambda x: x
+    attention = lambda v, q, mask= None: multihead_attention(
+        v, q, dim // num_head, num_head, softmax, mask)
+    forward = lambda x, dim_mid= dim_mid, dim= dim: tf.layers.dense(
+        tf.layers.dense(
+            x, dim_mid, activation, name= 'relu')
+        , dim, name= 'linear')
+    nrd = lambda x, y: normalize(x + dropout(y))
     # trim `src` to the maximum valid index among the batch, plus one for padding
     count_not_all = lambda x: tf.reduce_sum(tf.to_int32(~ tf.reduce_all(x, 0)))
     with tf.variable_scope('src'):
@@ -97,54 +134,50 @@ def model(len_cap= None
         tgt = tgt[:,:len_tgt]
         tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
         tgt, gold, ended = tgt[:,:-1], tgt[:,1:], ended[:,1:len_tgt]
-    # building blocks
-    with tf.variable_scope('dropout'):
-        self.dropout = placeholder(tf.float32, (), dropout)
-        keep = 1.0 - self.dropout
-    def dropout(x, keep= keep):
-        with tf.variable_scope('dropout'):
-            return tf.nn.dropout(x, keep, (tf.shape(x)[0], 1, dim))
-    if not training: dropout = lambda x: x
-    attention = lambda v, q, **args: multihead_attention(
-        value= v, query= q, dim= dim // num_head, num_head= num_head, softmax= softmax, **args)
-    forward = lambda x: tf.layers.dense(
-        tf.layers.dense(
-            x, dim_mid, activation, name= 'relu')
-        , dim, name= 'linear')
-    nrd = lambda x, y: normalize(x + dropout(y))
+    # embedding
     if len_cap: emb_pos = tf.constant(sinusoid(len_cap, dim, array= True), tf.float32, name= 'sinusoid')
-    # construction
+    with tf.variable_scope('emb_src'):
+        pos = emb_pos[:len_src] if len_cap else sinusoid(len_src, dim)
+        emb = tf.get_variable('emb', (dim_src, dim), tf.float32)
+        w = dropout(pos + tf.gather(emb, src))
+        # w = normalize(x) todo test if necessary
+    self.x = tgt
+    with tf.variable_scope('emb_tgt'):
+        x = dropout(forward(tgt))
+        # todo add position encoding
+        # w = normalize(x) todo test if necessary
+    # transformer
     with tf.variable_scope('encode'):
-        with tf.variable_scope('embed'):
-            pos = emb_pos[:len_src] if len_cap else sinusoid(len_src, dim)
-            emb = tf.get_variable('emb', (dim_src, dim), tf.float32)
-            w = normalize(dropout(pos + tf.gather(emb, src)))
         for i in range(num_layer):
             with tf.variable_scope("layer{}".format(i + 1)):
-                w = nrd(w, attention(w, w))
-                w = nrd(w, forward(w))
-    self.w, self.x = w, tgt
+                with tf.variable_scope("attention"):
+                    w = nrd(w, attention(w, w))
+                with tf.variable_scope("forward"):
+                    w = nrd(w, forward(w))
+    self.w = w
     with tf.variable_scope('decode'):
-        with tf.variable_scope('embed'):
-            x = normalize(dropout(forward(tgt)))
         with tf.variable_scope('mask'):
-            len_tgt = tf.shape(tgt)[1] # in case tgt is fed by user
-            mask = tf.linalg.LinearOperatorLowerTriangular(tf.ones((len_tgt, len_tgt))).to_dense()
+            t = tf.shape(x)[1]
+            mask = tf.linalg.LinearOperatorLowerTriangular(tf.ones((t, t))).to_dense()
             if softmax: mask = tf.log(mask)
         for i in range(num_layer):
             with tf.variable_scope("layer{}".format(i + 1)):
-                x = nrd(x, attention(x, x, mask= mask, name= 'masked_attention'))
-                x = nrd(x, attention(w, x))
-                x = nrd(x, forward(x))
+                with tf.variable_scope("causal_attention"):
+                    x = nrd(x, attention(x, x, mask))
+                with tf.variable_scope("attention"):
+                    x = nrd(x, attention(w, x))
+                with tf.variable_scope("forward"):
+                    x = nrd(x, forward(x))
+    # output
     with tf.variable_scope('close'):
-        # todo desgin this
-        close = self.close = tf.squeeze(tf.layers.dense(tf.layers.dense(x, dim, activation), 1), -1)
+        close = self.close = tf.squeeze(forward(x, dim, 1), -1)
         self.z = 0.0 < close[:,-1]
     with tf.variable_scope('frame'):
         frame = self.frame = tf.layers.dense(x, dim_tgt)
         self.y = frame[:,-1]
     # done
     with tf.variable_scope('loss'):
+        # todo smoothing
         self.err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
             logits= close, labels= tf.to_float(ended)))
         diff = gold - frame

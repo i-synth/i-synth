@@ -40,6 +40,8 @@ del i
 
 # for training
 src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
+tf.add_to_collection(tf.GraphKeys.LOCAL_VARIABLES, src)
+tf.add_to_collection(tf.GraphKeys.LOCAL_VARIABLES, tgt)
 m = model(dim_src= len(idx), len_cap= int(src.shape[1]), src= src, tgt= tgt)
 
 ############

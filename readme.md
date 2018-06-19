@@ -61,8 +61,6 @@ R^{d} -> R^{2f}
 
 - complex algebra
 - inspect transformer and optimize attention
-- smoothing for sigmoid prediction
-- reasonable weighting for the two losses
-- reasonable paddings for frames
-- positional encoding for frames
+- better close prediction
+- reasonable weighting for frame loss and close loss
 - convolution with pooling to reduce input
