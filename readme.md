@@ -61,6 +61,7 @@ R^{d} -> R^{2f}
 
 - complex algebra
 - inspect transformer and optimize attention
+- smoothing for sigmoid prediction
 - reasonable weighting for the two losses
 - reasonable paddings for frames
 - positional encoding for frames

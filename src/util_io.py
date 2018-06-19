@@ -54,14 +54,14 @@ def load(path, fs= 22050):
         ii = np.iinfo(wav.dtype)
         wav = wav.astype(np.float) / max(abs(ii.min), abs(ii.max))
     f, t, s = stft(wav, fs)
-    return s[1:].T
+    return s[:-1].T
 
 
 def save(path, x, fs= 22050, dtype= np.int16):
     """undoes `load`."""
     if not np.iscomplexobj(x): x = r2c(x)
     x = x.T
-    t, wav = istft(np.concatenate((np.zeros_like(x[:1]), x)))
+    t, wav = istft(np.concatenate((x, np.zeros_like(x[:1]))))
     if np.issubdtype(dtype, np.integer):
         ii = np.iinfo(dtype)
         wav *= max(abs(ii.min), abs(ii.max))
