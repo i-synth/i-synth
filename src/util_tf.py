@@ -34,8 +34,16 @@ def placeholder(dtype, shape, x= None, name= None):
     return tf.placeholder_with_default(x, shape, name)
 
 
-def normalize(x, axis= -1, eps= 1e-8, name= "normalize"):
+
+def normalize(x, name= "normalize", axis= -1
+              , gain= True, gain_initializer= tf.ones_initializer()
+              , bias= True, bias_initializer= tf.zeros_initializer()
+              , eps= 1e-8):
     """returns a tensor from `x` scaled and centered across `axis`."""
     with tf.variable_scope(name):
         mean, var = tf.nn.moments(x, axis, keep_dims=True)
-        return (x - mean) * tf.rsqrt(var + eps * eps)
+        x = (x - mean) * tf.rsqrt(var + eps * eps)
+        if gain or bias: dim = x.shape[-1]
+        if gain: x *= tf.get_variable('gain', dim, initializer= gain_initializer)
+        if bias: x += tf.get_variable('bias', dim, initializer= bias_initializer)
+        return x
