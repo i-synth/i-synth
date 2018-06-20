@@ -70,7 +70,7 @@ def model(len_cap= None
           , activation= tf.nn.relu
           , training= True
           , dropout= 0.1
-          , smooth= 0.1
+          , smooth= 0.4
           , warmup= 4e3
           , end= 1):
     """-> Record, with the following fields of tensors

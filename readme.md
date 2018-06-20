@@ -62,5 +62,4 @@ R^{d} -> R^{2f}
 - complex algebra
 - inspect transformer and optimize attention
 - better close prediction
-- reasonable weighting for frame loss and close loss
 - convolution with pooling to reduce input
