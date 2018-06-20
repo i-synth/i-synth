@@ -81,6 +81,7 @@ def model(len_cap= None
         tgt : f32 (b, t, dim_tgt) target feed, padded at the end with `nan`
       frame : f32 (b, t, dim_tgt) frame prediction
       close : f32 (b, t)          close prediction, aka end of frames
+        acc : f32 ()              close prediction accuracy
      smooth : f32 ()              close prediction smoothing
        err0 : f32 ()              close prediction loss
        err1 : f32 ()              frame prediction l1 loss
@@ -174,7 +175,9 @@ def model(len_cap= None
     # output
     with tf.variable_scope('close'):
         close = self.close = tf.squeeze(forward(x, dim, 1), -1)
-        self.z = 0.0 < close[:,-1]
+        closed = 0.0 < close
+        self.acc = tf.reduce_mean(tf.to_float(tf.equal(ended, closed)))
+        self.z = closed[:,-1]
     with tf.variable_scope('frame'):
         frame = self.frame = tf.layers.dense(x, dim_tgt)
         self.y = frame[:,-1]
@@ -182,11 +185,11 @@ def model(len_cap= None
     with tf.variable_scope('loss'):
         smooth = self.smooth = tf.placeholder_with_default(smooth, (), 'smooth')
         self.err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-            logits= close, labels= tf.to_float(ended) * (1.0 - smooth) + smooth / dim_tgt))
+            logits= close, labels= tf.to_float(ended) * (1.0 - smooth) + (smooth / 2)))
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
-        loss = self.err0 + self.err2 * 1e2
+        loss = self.err0 + self.err2
     if training:
         with tf.variable_scope('lr'):
             self.step = tf.train.get_or_create_global_step()

@@ -56,7 +56,8 @@ else:
     tf.global_variables_initializer().run()
 
 summ = tf.summary.merge((
-    tf.summary.scalar('step_err0', m.err0)
+    tf.summary.scalar('step_acc', m.acc)
+    , tf.summary.scalar('step_err0', m.err0)
     , tf.summary.scalar('step_err1', m.err1)
     , tf.summary.scalar('step_err2', m.err2)))
 feed_eval = {m.dropout: 0}
