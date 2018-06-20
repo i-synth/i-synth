@@ -70,6 +70,7 @@ def model(len_cap= None
           , activation= tf.nn.relu
           , training= True
           , dropout= 0.1
+          , smooth= 0.1
           , warmup= 4e3
           , end= 1):
     """-> Record, with the following fields of tensors
@@ -143,8 +144,10 @@ def model(len_cap= None
         # w = normalize(x) todo test if necessary
     self.x = tgt
     with tf.variable_scope('emb_tgt'):
-        x = dropout(forward(tgt))
-        # todo add position encoding
+        len_tgt = tf.shape(tgt)[1] # in case tgt is fed by user
+        pos = emb_pos[:len_tgt] if len_cap else sinusoid(len_tgt, dim)
+        emb = forward(tgt)
+        x = dropout(pos + emb)
         # w = normalize(x) todo test if necessary
     # transformer
     with tf.variable_scope('encode'):
@@ -177,9 +180,9 @@ def model(len_cap= None
         self.y = frame[:,-1]
     # done
     with tf.variable_scope('loss'):
-        # todo smoothing
+        smooth = self.smooth = tf.placeholder_with_default(smooth, (), 'smooth')
         self.err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-            logits= close, labels= tf.to_float(ended)))
+            logits= close, labels= tf.to_float(ended) * smooth + (1.0 - smooth) / dim_tgt))
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
