@@ -81,6 +81,7 @@ def model(len_cap= None
         tgt : f32 (b, t, dim_tgt) target feed, padded at the end with `nan`
       frame : f32 (b, t, dim_tgt) frame prediction
       close : f32 (b, t)          close prediction, aka end of frames
+     smooth : f32 ()              close prediction smoothing
        err0 : f32 ()              close prediction loss
        err1 : f32 ()              frame prediction l1 loss
        err2 : f32 ()              frame prediction l2 loss
@@ -100,8 +101,7 @@ def model(len_cap= None
 
     setting `len_cap` makes it more efficient for training.  you won't
     be able to feed it longer sequences, but it doesn't affect any
-    model parameters, so you can build another without `len_cap`
-    reusing all variables.
+    model parameters.
 
     """
     assert not dim % 2 and not dim % num_head
@@ -141,14 +141,14 @@ def model(len_cap= None
         pos = emb_pos[:len_src] if len_cap else sinusoid(len_src, dim)
         emb = tf.get_variable('emb', (dim_src, dim), tf.float32)
         w = dropout(pos + tf.gather(emb, src))
-        # w = normalize(x) todo test if necessary
+        # w = normalize(w) todo test if necessary
     self.x = tgt
     with tf.variable_scope('emb_tgt'):
         len_tgt = tf.shape(tgt)[1] # in case tgt is fed by user
         pos = emb_pos[:len_tgt] if len_cap else sinusoid(len_tgt, dim)
         emb = forward(tgt)
         x = dropout(pos + emb)
-        # w = normalize(x) todo test if necessary
+        # x = normalize(x) todo test if necessary
     # transformer
     with tf.variable_scope('encode'):
         for i in range(num_layer):
