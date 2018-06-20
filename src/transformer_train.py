@@ -40,8 +40,6 @@ del i
 
 # for training
 src, tgt = batch((src, tgt), batch_size= batch_size, shuffle= len(src))
-tf.add_to_collection(tf.GraphKeys.LOCAL_VARIABLES, src)
-tf.add_to_collection(tf.GraphKeys.LOCAL_VARIABLES, tgt)
 m = model(dim_src= len(idx), len_cap= int(src.shape[1]), src= src, tgt= tgt)
 
 ############
@@ -71,4 +69,4 @@ for _ in range(5):
         if not (step % step_eval):
             wtr.add_summary(sess.run(summ, feed_eval), step)
     save("trial/pred/{}_{}.wav".format(step, trial), m.frame.eval(feed_pred)[0])
-saver.save(sess, "trial/model/m{}".format(trial), step)
+saver.save(sess, "trial/model/m{}".format(trial), step, write_meta_graph= False)
