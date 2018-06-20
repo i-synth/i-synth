@@ -182,7 +182,7 @@ def model(len_cap= None
     with tf.variable_scope('loss'):
         smooth = self.smooth = tf.placeholder_with_default(smooth, (), 'smooth')
         self.err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-            logits= close, labels= tf.to_float(ended) * smooth + (1.0 - smooth) / dim_tgt))
+            logits= close, labels= tf.to_float(ended) * (1.0 - smooth) + smooth / dim_tgt))
         diff = gold - frame
         self.err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
         self.err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
