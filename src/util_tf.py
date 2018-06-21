@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+from tensorflow.contrib import ffmpeg, signal
 
 def profile(path, sess, run, feed_dict= None, prerun= 3, tag= 'step'):
     for _ in range(prerun): sess.run(run, feed_dict)
@@ -46,3 +46,26 @@ def normalize(x, axis= -1, eps= 1e-8
         if gain: x *= tf.get_variable('gain', dim, initializer= gain_initializer)
         if bias: x += tf.get_variable('bias', dim, initializer= bias_initializer)
         return x
+
+
+def wave2Mel(path):
+    sess = tf.Session()
+    raw = tf.read_file(path)
+    wav, sr = gen_audio_ops.decode_wav( raw )
+    stft = signal.stft( wav, frame_length=1024, frame_step=512,
+                         fft_length=1024)
+    bins = stft.shape[-1].value
+    lower, upper, mel_bins = 80.0, 10000.0, 64
+
+    l2m_matrix = signal.linear_to_mel_weight_matrix(mel_bins, bins,
+                                                    22050, lower, upper)
+    mel_gram_real = tf.tensordot(tf.real(stft), l2m_matrix, 1)
+    mel_gram_real.set_shape(stft.shape[:-1].concatenate(
+                        l2m_matrix.shape[-1:]))
+    mel_gram_imag = tf.tensordot(tf.imag(stft), l2m_matrix, 1)
+    mel_gram_imag.set_shape(stft.shape[:-1].concatenate(
+                        l2m_matrix.shape[-1:]))
+
+    mel_gram = tf.complex(mel_gram_real, mel_gram_imag)
+    return mel_gram
+
