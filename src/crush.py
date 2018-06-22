@@ -1,38 +1,78 @@
-from collections import Counter
-from util_io import path, load, save
-from util_plt import plt, spectrogram
+from librosa import load, stft, istft
+from librosa.display import specshow
+from librosa.output import write_wav
+from util_io import path
+import librosa
+import matplotlib.pyplot as plt
 import numpy as np
+import sounddevice as sd
 
 
-def crusher(sample_rate= 2**14, window_size= 2**11, threshold= 1000):
-    height = window_size // 2
-    bin_size = sample_rate // window_size
-    t = threshold // bin_size - 1 # the bin at threshold
-    f = (np.arange(height) + 1) * bin_size # ceil frequency for each bin
-    h = f[t:] # high bins to crush
-    hmel = np.floor(np.log1p(h / threshold) * threshold / np.log(2) / bin_size).astype(np.int)
-    # corresponding bins on mel scale
-    hbin = Counter(hmel) # the mel bin -> the number of linear bins crushed into
-    m = np.zeros((hmel[-1], height))
-    for i in range(t): m[i,i] = 1
-    for i, b in enumerate(hmel[:-1], t):
-        m[b,i] = 1 / hbin[b]
-    return m, np.linalg.pinv(m)
+wav, sr = load(path('LJ028-0224'), sr= 16000)
 
 
-param = dict(fs= 22050, nperseg= 2048, noverlap= 1024)
-crush, crush_inv = crusher(param['fs'], param['nperseg'])
+def mel(sr, ws):
+    b = ws // 2 + 1 # number of linear frequency bins
+    k = 1000 * ws / sr # how many bins for 1kHz
+    t = int(k) # the bin at threshold 1000
+    h = np.log2(np.linspace(1000, sr//2, b - t) / 1000 + 1) * k # higher bins on mel scale
+    m = np.zeros((1 + int(np.ceil(h[-1])), b))
+    for i in range(t): m[i,i] = 1.0 # identity for bins below 1kHz
+    for i, (f, c, r) in enumerate(zip(np.floor(h), np.ceil(h), np.mod(h, 1)), t):
+        # how much of each linear bin should be distributed to the mel bins
+        m[int(f),i] += 1 - r
+        m[int(c),i] += r
+    return m
 
-s = load(path("LJ001-0001"), **param)
 
-s_crushed = s @ crush.T
-s2 = s_crushed @ crush_inv.T
+s = [] # linear spectrograms
+# mel vs librosa.filters.mel
+m, m2 = [], [] # mel transformations
+t, t2 = [], [] # mel spectrograms
+r, r2 = [], [] # reconstructed linear spectrograms
+w, w2 = [], [] # reconstructed waves
+for ws in 256, 512, 1024, 2048, 4096:
+    s.append(stft(wav, ws))
+    m.append(mel(sr, ws))
+    t.append(m[-1] @ s[-1])
+    r.append(np.linalg.pinv(m[-1]) @ t[-1])
+    w.append(istft(r[-1]))
+    m2.append(librosa.filters.mel(sr, ws, len(m[-1]), norm= None))
+    t2.append(m2[-1] @ s[-1])
+    r2.append(np.linalg.pinv(m2[-1]) @ t2[-1])
+    w2.append(istft(r2[-1]))
 
-plt.subplot(121)
-spectrogram(s)
-plt.subplot(122)
-spectrogram(s2)
+# frequency bins and time steps
+[x.shape for x in s]
+
+# target and source of transformation
+[x.shape for x in m]
+
+# librosa.filters.mel has lower error
+[np.sum(np.abs(x - wav[:len(x)])) for x in w]
+[np.sum(np.abs(x - wav[:len(x)])) for x in w2]
+
+# plot spectrograms
+n = 1
+for xx in zip(t, t2, r, r2):
+    for x in xx:
+        plt.subplot(len(s), 4, n)
+        specshow(np.log(1e-8 + np.abs(x)))
+        n += 1
+plt.tight_layout(0)
 plt.show()
 
-save('tmp/original.wav', s, **param)
-save('tmp/restored.wav', s2, **param)
+# plot transformations
+n = 1
+for xx in m, m2:
+    for x in xx:
+        plt.subplot(2, len(s), n)
+        specshow(x, x_axis= 'linear')
+        n += 1
+plt.tight_layout(0)
+plt.show()
+
+# play reconstructions
+for x, x2 in zip(w, w2):
+    sd.play(x, sr, blocking= True)
+    sd.play(x2, sr, blocking= True)
