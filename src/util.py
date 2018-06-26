@@ -1,6 +1,11 @@
 from functools import partial
 
 
+def identity(x):
+    """a -> a"""
+    return x
+
+
 def comp(g, f, *fs):
     """(b -> c) -> (a -> b) -> (a -> c)"""
     if fs: f = comp(f, *fs)
@@ -13,7 +18,6 @@ def get(k):
 
 
 class Record(object):
-    """https://en.wikipedia.org/wiki/Record_(computer_science)"""
 
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -27,9 +31,6 @@ class Record(object):
 
     def __bool__(self):
         return bool(self.__dict__)
-
-    def __call__(self, attr):
-        return getattr(self, attr)
 
     def __contains__(self, item):
         return item in self.__dict__
