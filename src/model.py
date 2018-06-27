@@ -228,24 +228,28 @@ class Transformer(Record):
                 y = x[:,1:]
                 z = tf.reshape(y, (tf.shape(y)[0], 0, 1))
                 v = tf.reshape(y, (tf.shape(y)[0], 0, dim))
-            def autoreg(i, x, v, y, z):
+            def autoreg(i, x, vs, y, z):
                 # i : ()              time step from 0 to t=len_tgt
                 # x : (b, 1, dim_tgt) frame at step i
                 # v : (b, t, dim)     embeded x
                 # y : (b, t, dim_tgt) x one step ahead
                 # z : (b, t, 1)       close prediction
                 with tf.variable_scope('emb_tgt'): x = dropout(emb_tgt(tgt, act) + pos[i])
-                with tf.variable_scope('cache_v'): v = tf.concat((v, x), 1)
-                for dec in decode: x = dec(x, v, w, act, dropout)
+                us = []
+                for dec, v in zip(decode, vs):
+                    with tf.variable_scope('cache_v'):
+                        v = tf.concat((v, x), 1)
+                        us.append(v)
+                    x = dec(x, v, w, dropout)
                 x, z = frame(x, act), close(x, act)
                 with tf.variable_scope('cache_y'): y = tf.concat((y, x), 1)
                 with tf.variable_scope('cache_z'): z = tf.concat((z, x), 1)
-                return i + 1, x, v, y, z
+                return i + 1, x, tuple(us), y, z
             _, _, _, y, z = tf.while_loop(
                 lambda i, *_: i < len_tgt # todo stop when end is reached if not trainable
                 , autoreg
-                , (0, x, v, y, z)
-                , (tf.TensorShape(()), x.shape, tf.TensorShape((None, None, dim)), y.shape, z.shape)
+                , (0, x, (v,)*len(decode), y, z)
+                , (tf.TensorShape(()), x.shape, (tf.TensorShape((None, None, dim)),)*len(decode), y.shape, z.shape)
                 , back_prop= trainable
                 , swap_memory= True
                 , name= 'autoreg')
