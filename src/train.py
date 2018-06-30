@@ -2,7 +2,7 @@
 
 
 trial      = '01'
-len_cap    = 318
+len_cap    = 189
 dim_tgt    = 512
 batch_size = 2**4
 ckpt       = None
@@ -106,5 +106,5 @@ for r in 5, 4, 3, 2, 1:
         if not step % step_eval:
             wtr.add_summary(sess.run(summ), step)
     saver.save(sess, "trial/model/{}_{}".format(trial, step), write_meta_graph= False)
-    save("trial/pred/{}_{}_forcing".format(step, trial), forcing_valid.output.eval(synth_forcing))
-    save("trial/pred/{}_{}_autoreg".format(step, trial), autoreg_valid.output.eval(synth_autoreg))
+    save("trial/pred/{}_{}_forcing.wav".format(step, trial), forcing_valid.output.eval(synth_forcing)[0])
+    save("trial/pred/{}_{}_autoreg.wav".format(step, trial), autoreg_valid.output.eval(synth_autoreg)[0])

@@ -41,7 +41,7 @@ def load_meta(path= "~/data/LJSpeech-1.0", filename= "metadata.csv", sep= "|", n
     return np.array(names), np.array(texts)
 
 
-def load(path, rate= 8000, window= 512, hop= 256):
+def load(path, rate= 8000, window= 'boxcar', size= 512, hop= 512):
     """reads a wav file and returns the complex spectrogram.
 
     the first axis are the time steps and the second axis the
@@ -49,14 +49,15 @@ def load(path, rate= 8000, window= 512, hop= 256):
 
     """
     wav, _ = librosa.load(path, rate)
-    frame = librosa.stft(wav, window, hop)
+    frame = librosa.stft(wav, n_fft= size, hop_length= hop, window= window)
     return frame[:-1].T
 
 
-def save(path, x, rate= 8000, hop= 256):
+def save(path, x, rate= 8000, window= 'boxcar', hop= 512):
     """undoes `load`."""
+    assert 2 == x.ndim
     if np.isrealobj(x): x = r2c(x)
     x = x.T
     x = np.concatenate((x, np.zeros_like(x[:1])))
-    wav = librosa.istft(x, hop)
+    wav = librosa.istft(x, hop_length= hop, window= window)
     librosa.output.write_wav(path, wav, rate)

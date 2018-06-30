@@ -234,7 +234,7 @@ class Transformer(Record):
                 # v : (b, t, dim)     embeded x
                 # y : (b, t, dim_tgt) x one step ahead
                 # z : (b, t, 1)       close prediction
-                with tf.variable_scope('emb_tgt'): x = dropout(emb_tgt(tgt, act) + pos[i])
+                with tf.variable_scope('emb_tgt'): x = dropout(emb_tgt(x, act) + pos[i])
                 us = []
                 for dec, v in zip(decode, vs):
                     with tf.variable_scope('cache_v'):
