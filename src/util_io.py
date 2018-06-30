@@ -1,7 +1,6 @@
 from os.path import expanduser, join
-from scipy.io import wavfile
-from scipy.signal import stft, istft
 from util_np import np, r2c
+import librosa
 
 
 def path(name, folder= "~/data/LJSpeech-1.0"):
@@ -41,28 +40,22 @@ def load_meta(path= "~/data/LJSpeech-1.0", filename= "metadata.csv", sep= "|", n
     return np.array(names), np.array(texts)
 
 
-def load(path, fs= 22050, **stft_args):
+def load(path, rate= 8000, window= 512, hop= 256):
     """reads a wav file and returns the complex spectrogram.
 
     the first axis are the time steps and the second axis the
     frequency bins, with the first frequency bin removed.
 
     """
-    fs2, wav = wavfile.read(path)
-    assert fs == fs2
-    if np.issubdtype(wav.dtype, np.integer):
-        ii = np.iinfo(wav.dtype)
-        wav = wav.astype(np.float) / max(abs(ii.min), abs(ii.max))
-    f, t, s = stft(wav, fs= fs, **stft_args)
-    return s[:-1].T
+    wav, _ = librosa.load(path, rate)
+    frame = librosa.stft(wav, window, hop)
+    return frame[:-1].T
 
 
-def save(path, x, fs= 22050, dtype= np.int16, **istft_args):
+def save(path, x, rate= 8000, hop= 256):
     """undoes `load`."""
     if not np.iscomplexobj(x): x = r2c(x)
     x = x.T
-    t, wav = istft(np.concatenate((x, np.zeros_like(x[:1]))), fs= fs, **istft_args)
-    if np.issubdtype(dtype, np.integer):
-        ii = np.iinfo(dtype)
-        wav *= max(abs(ii.min), abs(ii.max))
-    wavfile.write(path, fs, wav.astype(dtype))
+    x = np.concatenate((x, np.zeros_like(x[:1])))
+    wav = librosa.istft(x, hop)
+    librosa.output.write_wav(path, wav, rate)
