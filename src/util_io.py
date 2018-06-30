@@ -5,6 +5,7 @@ import librosa
 
 def path(name, folder= "~/data/LJSpeech-1.0"):
     """returns the absolute path for LJSpeech audio with `name`."""
+    if isinstance(name, bytes): name = name.decode()
     return join(expanduser(folder), "wavs", name + ".wav")
 
 
@@ -54,7 +55,7 @@ def load(path, rate= 8000, window= 512, hop= 256):
 
 def save(path, x, rate= 8000, hop= 256):
     """undoes `load`."""
-    if not np.iscomplexobj(x): x = r2c(x)
+    if np.isrealobj(x): x = r2c(x)
     x = x.T
     x = np.concatenate((x, np.zeros_like(x[:1])))
     wav = librosa.istft(x, hop)

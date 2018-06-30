@@ -2,12 +2,11 @@ from util import Record, identity
 import tensorflow as tf
 
 
-def profile(path, sess, run, feed_dict= None, prerun= 3, tag= 'step'):
+def profile(sess, wtr, run, feed_dict= None, prerun= 3, tag= 'flow'):
     for _ in range(prerun): sess.run(run, feed_dict)
     meta = tf.RunMetadata()
     sess.run(run, feed_dict, tf.RunOptions(trace_level= tf.RunOptions.FULL_TRACE), meta)
-    with tf.summary.FileWriter(path, sess.graph) as wtr:
-        wtr.add_run_metadata(meta, tag)
+    wtr.add_run_metadata(meta, tag)
 
 
 def batch(data, batch_size, shuffle= 1e4, repeat= True, fn= None, name= 'batch'):
@@ -183,10 +182,10 @@ class Smooth(Record):
 
     def __call__(self, x, name= None):
         if self.dim:
+            return tf.one_hot(x, self.dim, self.smooth, self.shared, name= name or self.name)
+        else:
             with tf.variable_scope(name or self.name):
                 return x * self.smooth + self.shared
-        else:
-            return tf.one_hot(x, self.dim, self.smooth, self.shared, name= name or self.name)
 
 
 def wave2Mel(path):

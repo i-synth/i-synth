@@ -77,7 +77,7 @@ class EncodeBlock(Record):
     def __call__(self, x, act, dropout, name= None):
         with tf.variable_scope(name or self.name):
             x = self.attention(x, x, dropout, self.num_head)
-            x = self.forward(x, dropout, act)
+            x = self.forward(x, act, dropout)
         return x
 
 
@@ -95,7 +95,7 @@ class DecodeBlock(Record):
         with tf.variable_scope(name or self.name):
             x = self.causal(x, v, dropout, self.num_head, mask)
             x = self.attention(x, w, dropout, self.num_head)
-            x = self.forward(x, dropout, act)
+            x = self.forward(x, act, dropout)
         return x
 
 
@@ -116,11 +116,11 @@ class Transformer(Record):
 
     @staticmethod
     def new(end= 1
-            , dim_src= 256, dim= 256
-            , dim_tgt= 256, dim_mid= 512
+            , dim_src= 256, dim= 512
+            , dim_tgt= 512, dim_mid= 1024
             , num_layer= 2, num_head= 4
             , softmax= True
-            , smooth= 0.1
+            , smooth= 0.4
             , dropout= 0.1):
         """-> Transformer with fields
 
@@ -139,7 +139,7 @@ class Transformer(Record):
         """
         assert not dim % 2 and not dim % num_head
         emb_src = tf.get_variable('emb_src', (dim_src, dim), tf.float32)
-        emb_tgt = Forward(dim, dim_mid, name= 'emb_tgt')
+        emb_tgt = Forward(dim_tgt, dim_mid, dim, name= 'emb_tgt')
         with tf.variable_scope('encode'):
             encode = tuple(EncodeBlock(
                 dim, dim_mid, num_head, softmax, "layer{}".format(i + 1))
@@ -148,10 +148,11 @@ class Transformer(Record):
             decode = tuple(DecodeBlock(
                 dim, dim_mid, num_head, softmax, "layer{}".format(i + 1))
                         for i in range(num_layer))
-        frame = Forward(dim, dim_tgt, name= 'frame')
-        close = Forward(dim, 1, name= 'close')
+        frame = Forward(dim, dim_mid, dim_tgt, name= 'frame')
+        close = Forward(dim, dim_mid, 1, name= 'close')
         return Transformer(
-            end= tf.constant(end, tf.int32, (), 'end')
+            dim= dim, dim_tgt= dim_tgt
+            , end= tf.constant(end, tf.int32, (), 'end')
             , emb_src= emb_src, encode= encode
             , emb_tgt= emb_tgt, decode= decode
             , frame= frame, close= close
@@ -162,7 +163,7 @@ class Transformer(Record):
         """-> Transformer with new fields
 
             src_ : i32  (b, ?)          source feed, in range `[0, dim_src)`
-            tgt_ : f32  (b, ?, dim_tgt) target feed, in range `[0, dim_tgt)`
+            tgt_ : f32  (b, ?, dim_tgt) target feed
              src : i32  (b, s)          source with `end` trimmed among the batch
              tgt : i32  (b, t, dim_tgt) target with `nan` trimmed among the batch
             gold : i32  (b, t)          target one step ahead
@@ -174,8 +175,7 @@ class Transformer(Record):
         affect any model parameters.
 
         """
-        dim = int(self.emb_tgt.shape[1])
-        end = self.end
+        end, dim, dim_tgt = self.end, self.dim, self.dim_tgt
         count_not_all = lambda x: tf.reduce_sum(tf.to_int32(~ tf.reduce_all(x, 0)))
         with tf.variable_scope('src'):
             src = src_ = placeholder(tf.int32, (None, None), src)
@@ -184,10 +184,10 @@ class Transformer(Record):
         with tf.variable_scope('tgt'):
             tgt = tgt_ = placeholder(tf.float32, (None, None, dim_tgt), tgt)
             ended = tf.is_nan(tgt[:,:,0])
-            len_tgt = count_not_all(ended) + 1
-            tgt = tgt[:,:len_tgt]
+            # len_tgt = count_not_all(ended) + 1
+            # tgt, ended = tgt[:,:len_tgt], ended[:,:len_tgt]
             tgt = tf.where(tf.is_nan(tgt), tf.zeros_like(tgt), tgt)
-            tgt, gold, ended = tgt[:,:-1], tgt[:,1:], ended[:,1:len_tgt]
+            tgt, gold, ended = tgt[:,:-1], tgt[:,1:], ended[:,1:]
         return Transformer(
             position= Sinusoid(dim, len_cap)
             , src_= src_, src= src
@@ -214,7 +214,7 @@ class Transformer(Record):
         position, dropout = self.position, self.dropout if trainable else identity
         src, emb_src, encode = self.src, self.emb_src, self.encode
         tgt, emb_tgt, decode = self.tgt, self.emb_tgt, self.decode
-        dim_tgt, dim = map(int, emb_tgt.shape)
+        dim, dim_tgt = self.dim, self.dim_tgt
         with tf.variable_scope('emb_src_autoreg'):
             w = tf.gather(emb_src, src)
             w = dropout(w + position(tf.shape(w)[1]))
@@ -240,19 +240,24 @@ class Transformer(Record):
                     with tf.variable_scope('cache_v'):
                         v = tf.concat((v, x), 1)
                         us.append(v)
-                    x = dec(x, v, w, dropout)
-                x, z = frame(x, act), close(x, act)
+                    x = dec(x, v, w, act, dropout)
+                x, c = frame(x, act), close(x, act)
                 with tf.variable_scope('cache_y'): y = tf.concat((y, x), 1)
-                with tf.variable_scope('cache_z'): z = tf.concat((z, x), 1)
+                with tf.variable_scope('cache_z'): z = tf.concat((z, c), 1)
                 return i + 1, x, tuple(us), y, z
             _, _, _, y, z = tf.while_loop(
                 lambda i, *_: i < len_tgt # todo stop when end is reached if not trainable
                 , autoreg
                 , (0, x, (v,)*len(decode), y, z)
-                , (tf.TensorShape(()), x.shape, (tf.TensorShape((None, None, dim)),)*len(decode), y.shape, z.shape)
+                , (tf.TensorShape(())
+                   , x.shape
+                   , (tf.TensorShape((None, None, dim)),)*len(decode)
+                   , y.shape
+                   , tf.TensorShape((None, None, 1)))
                 , back_prop= trainable
                 , swap_memory= True
                 , name= 'autoreg')
+            z = tf.squeeze(z, -1)
         return Transformer(len_tgt= len_tgt, output= y, closed= z, **self)._pred()
 
     def forcing(self, act= tf.nn.relu):
@@ -299,7 +304,7 @@ class Transformer(Record):
             acc = tf.reduce_mean(tf.to_float(tf.equal(ended, 0.0 < closed)))
         with tf.variable_scope('loss'):
             err0 = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
-                logits= close, labels= smooth(tf.to_float(ended))))
+                logits= closed, labels= smooth(tf.to_float(ended))))
             diff = gold - output
             err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
             err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
@@ -314,7 +319,7 @@ class Transformer(Record):
           up :        update operation
 
         """
-        dim, loss = int(self.emb_tgt.shape[1]), self.loss
+        dim, loss = self.dim, self.loss
         with tf.variable_scope('lr'):
             s = tf.train.get_or_create_global_step()
             t = tf.to_float(s + 1)

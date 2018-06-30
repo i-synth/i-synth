@@ -29,10 +29,12 @@ def c2r(x, axis= -1):
     parts and then the imaginary parts along `axis`.
 
     """
+    assert np.iscomplexobj(x)
     return np.concatenate((x.real, x.imag), axis)
 
 
 def r2c(x, axis= -1):
     """undoes `c2r`."""
+    assert np.isrealobj(x)
     r, i = np.split(x, 2, axis)
     return r + 1j * i
