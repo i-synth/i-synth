@@ -2,7 +2,7 @@
 
 
 trial      = '01'
-len_cap    = 189
+len_cap    = 318
 dim_tgt    = 512
 batch_size = 2**4
 ckpt       = None
@@ -17,8 +17,10 @@ from util_np import np, vpack, c2r
 from util_tf import tf, batch
 tf.set_random_seed(0)
 
-def load_batch(names):
-    x = vpack(map(comp(load, path), names), complex('(nan+nanj)'), 1, 1)
+def load_batch(names, load= comp(np.load, "trial/data/grams/{}.npy".format)):
+    names = names.astype(np.str)
+    x = vpack(map(load, names), complex('(nan+nanj)'), 1, 1)
+    # x = vpack(map(comp(load, path), names), complex('(nan+nanj)'), 1, 1)
     x[:,0] = 0j
     x = c2r(x)
     _, t, d = x.shape
@@ -65,8 +67,8 @@ synth_autoreg = {autoreg_valid.src: src, autoreg_valid.tgt: tgt[:,:1], autoreg_v
 ##################
 
 model_train = model.data(*batch((texts[split:], names[split:]), batch_size, fn= batch_fn), len_cap)
-forcing_train = model_train.forcing().train(warmup= epoch)
-autoreg_train = model_train.autoreg().train(warmup= epoch)
+forcing_train = model_train.forcing().train(warmup= epoch*2)
+autoreg_train = model_train.autoreg().train(warmup= epoch*2)
 
 ############
 # training #
@@ -81,30 +83,22 @@ if ckpt:
 else:
     tf.global_variables_initializer().run()
 
-step_eval = epoch // 32
+step_eval = epoch // 16
 summ = tf.summary.merge((
     tf.summary.scalar('step_acc',    forcing_valid.acc)
     , tf.summary.scalar('step_err0', forcing_valid.err0)
     , tf.summary.scalar('step_err1', forcing_valid.err1)
     , tf.summary.scalar('step_err2', forcing_valid.err2)))
 
-# warmup only with teacher forcing
-for _ in tqdm(range(epoch), ncols= 70):
-    sess.run(forcing_train.up)
-    step = sess.run(forcing_train.step)
-    if not (step % step_eval):
-        wtr.add_summary(sess.run(summ), step)
-
-# mixed teacher forcing and backprop through time
-for r in 5, 4, 3, 2, 1:
+for r in 6, 5, 4, 3, 2, 1:
     for _ in tqdm(range(epoch), ncols= 70):
-        if not step % r:
-            sess.run(autoreg_train.up)
-        else:
-            sess.run(forcing_train.up)
+        sess.run(forcing_train.up)
         step = sess.run(forcing_train.step)
-        if not step % step_eval:
-            wtr.add_summary(sess.run(summ), step)
+        if not step % step_eval: wtr.add_summary(sess.run(summ), step)
+    for _ in tqdm(range(epoch), ncols= 70):
+        sess.run(forcing_train.up if step % r else autoreg_train.up)
+        step = sess.run(forcing_train.step)
+        if not step % step_eval: wtr.add_summary(sess.run(summ), step)
     saver.save(sess, "trial/model/{}_{}".format(trial, step), write_meta_graph= False)
     save("trial/pred/{}_{}_forcing.wav".format(step, trial), forcing_valid.output.eval(synth_forcing)[0])
     save("trial/pred/{}_{}_autoreg.wav".format(step, trial), autoreg_valid.output.eval(synth_autoreg)[0])

@@ -9,7 +9,7 @@ def profile(sess, wtr, run, feed_dict= None, prerun= 3, tag= 'flow'):
     wtr.add_run_metadata(meta, tag)
 
 
-def batch(data, batch_size, shuffle= 1e4, repeat= True, fn= None, name= 'batch'):
+def batch(data, batch_size, shuffle= 1e4, repeat= True, fn= None, prefetch= 16, name= 'batch'):
     """returns a tensorflow dataset iterator from `data`."""
     with tf.variable_scope(name):
         ds = tf.data.Dataset.from_tensor_slices(data)
@@ -17,6 +17,7 @@ def batch(data, batch_size, shuffle= 1e4, repeat= True, fn= None, name= 'batch')
         if repeat:  ds = ds.repeat()
         ds = ds.batch(batch_size)
         if fn: ds = ds.map(fn)
+        if prefetch: ds = ds.prefetch(prefetch)
         return ds.make_one_shot_iterator().get_next()
 
 

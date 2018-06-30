@@ -5,7 +5,6 @@ import librosa
 
 def path(name, folder= "~/data/LJSpeech-1.0"):
     """returns the absolute path for LJSpeech audio with `name`."""
-    if isinstance(name, bytes): name = name.decode()
     return join(expanduser(folder), "wavs", name + ".wav")
 
 
