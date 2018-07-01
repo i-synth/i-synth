@@ -1,5 +1,5 @@
 from util import Record, identity
-from util_tf import tf, placeholder, Normalize, Dense, Forward, Attention, Dropout, Smooth
+from util_tf import tf, placeholder, Normalize, Embed, Dense, Forward, Attention, Dropout, Smooth
 import numpy as np
 
 
@@ -125,7 +125,7 @@ class Transformer(Record):
         """-> Transformer with fields
 
             end : i32 ()
-        emb_src : f32 (dim_src, dim)
+        emb_src : Embed
         emb_tgt : Forward
          encode : tuple EncodeBlock
          decode : tuple DecodeBlock
@@ -138,7 +138,7 @@ class Transformer(Record):
 
         """
         assert not dim % 2 and not dim % num_head
-        emb_src = tf.get_variable('emb_src', (dim_src, dim), tf.float32)
+        emb_src = Embed(dim_src, dim, 'emb_src')
         emb_tgt = Forward(dim_tgt, dim_mid, dim, name= 'emb_tgt')
         with tf.variable_scope('encode'):
             encode = tuple(EncodeBlock(
@@ -216,7 +216,7 @@ class Transformer(Record):
         tgt, emb_tgt, decode = self.tgt, self.emb_tgt, self.decode
         dim, dim_tgt = self.dim, self.dim_tgt
         with tf.variable_scope('emb_src_autoreg'):
-            w = tf.gather(emb_src, src)
+            w = emb_src(src)
             w = dropout(w + position(tf.shape(w)[1]))
         with tf.variable_scope('encode_autoreg'):
             for enc in encode: w = enc(w, act, dropout)
@@ -279,7 +279,7 @@ class Transformer(Record):
         src, emb_src, encode = self.src, self.emb_src, self.encode
         tgt, emb_tgt, decode = self.tgt, self.emb_tgt, self.decode
         with tf.variable_scope('emb_src_forcing'):
-            w = tf.gather(emb_src, src)
+            w = emb_src(src)
             w = dropout(w + position(tf.shape(w)[1]))
         with tf.variable_scope('encode_forcing'):
             for enc in encode: w = enc(w, act, dropout)
@@ -323,6 +323,6 @@ class Transformer(Record):
         with tf.variable_scope('lr'):
             s = tf.train.get_or_create_global_step()
             t = tf.to_float(s + 1)
-            lr = placeholder(tf.float32, (), (dim ** -0.5) * tf.minimum(t ** -0.5, t * (warmup ** -1.5)), 'lr')
+            lr = (dim ** -0.5) * tf.minimum(t ** -0.5, t * (warmup ** -1.5))
         up = tf.train.AdamOptimizer(lr, beta1, beta2, epsilon).minimize(loss, s)
         return Transformer(step= s, lr= lr, up= up, **self)

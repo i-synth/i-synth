@@ -58,6 +58,17 @@ class Normalize(Record):
             return normalize(x, axis, eps) * self.gain + self.bias
 
 
+class Embed(Record):
+
+    def __init__(self, dim, dim_out= None, name= 'embed'):
+        if dim_out is None: dim_out = dim
+        self.name = name
+        self.emb = tf.get_variable(name, (dim, dim_out))
+
+    def __call__(self, x, name= None):
+        return tf.gather(self.emb, x, name= name or self.name)
+
+
 class Dense(Record):
 
     def __init__(self, dim, dim_out= None, bias= True, name= 'dense'):
