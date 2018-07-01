@@ -260,7 +260,7 @@ class Transformer(Record):
             z = tf.squeeze(z, -1)
         return Transformer(len_tgt= len_tgt, output= y, closed= z, **self)._pred()
 
-    def forcing(self, act= tf.nn.relu):
+    def forcing(self, act= tf.nn.relu, trainable= True):
         """-> Transformer with new fields, teacher forcing
 
         output : f32 (b, t, dim_tgt) frame prediction
@@ -275,7 +275,7 @@ class Transformer(Record):
 
         """
         frame, close = self.frame, self.close
-        position, dropout = self.position, self.dropout
+        position, dropout = self.position, self.dropout if trainable else identity
         src, emb_src, encode = self.src, self.emb_src, self.encode
         tgt, emb_tgt, decode = self.tgt, self.emb_tgt, self.decode
         with tf.variable_scope('emb_src_forcing'):
