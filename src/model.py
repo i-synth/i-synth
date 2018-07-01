@@ -118,7 +118,7 @@ class Transformer(Record):
     def new(end= 1
             , dim_src= 256, dim= 512
             , dim_tgt= 512, dim_mid= 1024
-            , num_layer= 2, num_head= 4
+            , num_layer= 4, num_head= 8
             , softmax= True
             , smooth= 0.4
             , dropout= 0.1):
@@ -281,11 +281,11 @@ class Transformer(Record):
         with tf.variable_scope('emb_src_forcing'):
             w = tf.gather(emb_src, src)
             w = dropout(w + position(tf.shape(w)[1]))
+        with tf.variable_scope('encode_forcing'):
+            for enc in encode: w = enc(w, act, dropout)
         with tf.variable_scope('emb_tgt_forcing'):
             x = emb_tgt(tgt, act)
             x = dropout(x + position(tf.shape(x)[1]))
-        with tf.variable_scope('encode_forcing'):
-            for enc in encode: w = enc(w, act, dropout)
         with tf.variable_scope('decode_forcing'):
             with tf.variable_scope('mask'):
                 mask = tf.linalg.LinearOperatorLowerTriangular(tf.ones((tf.shape(x)[1],)*2)).to_dense()
