@@ -15,7 +15,19 @@ from util import comp
 from util_io import path, load, save
 from util_np import np, vpack, c2r
 from util_tf import tf, batch
+
+logdir = expanduser("~/cache/tensorboard-logdir/i-synth")
 tf.set_random_seed(0)
+
+###############
+# preparation #
+###############
+
+index = np.load("trial/data/index.npy").item()
+texts = np.load("trial/data/texts.npy")
+names = np.load("trial/data/names.npy")
+epoch, split = divmod(len(texts), batch_size)
+print("{} batches of {} training instances, {} validation".format(epoch, batch_size, split))
 
 def load_batch(names, load= comp(np.load, "trial/data/grams/{}.npy".format)):
     names = names.astype(np.str)
@@ -27,18 +39,6 @@ def load_batch(names, load= comp(np.load, "trial/data/grams/{}.npy".format)):
     assert t <= len_cap
     assert d == dim_tgt
     return x
-batch_fn = lambda src, names: (src, tf.py_func(load_batch, (names,), tf.float32))
-
-###############
-# preparation #
-###############
-
-logdir = expanduser("~/cache/tensorboard-logdir/i-synth")
-index = np.load("trial/data/index.npy").item()
-texts = np.load("trial/data/texts.npy")
-names = np.load("trial/data/names.npy")
-epoch, split = divmod(len(texts), batch_size)
-print("{} batches of {} training instances, {} validation".format(epoch, batch_size, split))
 
 ####################
 # validation model #
@@ -46,8 +46,8 @@ print("{} batches of {} training instances, {} validation".format(epoch, batch_s
 
 model = Transformer.new(dim_src= len(index), dim_tgt= dim_tgt)
 model_valid = model.data(texts[:split], load_batch(names[:split]), len_cap)
+forcing_valid = model_valid.forcing(trainable= False)
 autoreg_valid = model_valid.autoreg(trainable= False)
-forcing_valid = model_valid.forcing()
 
 # # for profiling
 # from util_tf import profile
@@ -66,6 +66,7 @@ synth_autoreg = {autoreg_valid.src: src, autoreg_valid.tgt: tgt[:,:1], autoreg_v
 # training model #
 ##################
 
+batch_fn = lambda src, names: (src, tf.py_func(load_batch, (names,), tf.float32))
 model_train = model.data(*batch((texts[split:], names[split:]), batch_size, fn= batch_fn), len_cap)
 forcing_train = model_train.forcing().train(warmup= epoch*2)
 autoreg_train = model_train.autoreg().train(warmup= epoch*2)
