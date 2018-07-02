@@ -85,19 +85,21 @@ else:
     tf.global_variables_initializer().run()
 
 step_eval = epoch // 16
-summ = tf.summary.merge((
-    tf.summary.scalar('step_acc',    forcing_valid.acc)
-    , tf.summary.scalar('step_err0', forcing_valid.err0)
-    , tf.summary.scalar('step_err1', forcing_valid.err1)
-    , tf.summary.scalar('step_err2', forcing_valid.err2)))
+summ = tf.summary.merge(
+    (tf.summary.scalar('step_acc',    forcing_valid.acc)
+     , tf.summary.scalar('step_err0', forcing_valid.err0)
+     , tf.summary.scalar('step_err1', forcing_valid.err1)
+     , tf.summary.scalar('step_err2', forcing_valid.err2)))
 
-for r in 6, 5, 4, 3, 2, 1:
+forc = lambda: sess.run(forcing_train.up)
+bptt = lambda: sess.run(autoreg_train.up)
+def auto():
+    s, t, p = sess.run(        (autoreg_train.src,    autoreg_train.tgt_,    autoreg_train.output))
+    sess.run(forcing_train.up, {forcing_train.src: s, forcing_train.tgt_: t, forcing_train.tgt: p})
+
+while True:
     for _ in tqdm(range(epoch), ncols= 70):
-        sess.run(forcing_train.up)
-        step = sess.run(forcing_train.step)
-        if not step % step_eval: wtr.add_summary(sess.run(summ), step)
-    for _ in tqdm(range(epoch), ncols= 70):
-        sess.run(forcing_train.up if step % r else autoreg_train.up)
+        # pick a training fn to run
         step = sess.run(forcing_train.step)
         if not step % step_eval: wtr.add_summary(sess.run(summ), step)
     saver.save(sess, "trial/model/{}_{}".format(trial, step), write_meta_graph= False)
