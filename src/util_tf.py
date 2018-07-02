@@ -63,10 +63,10 @@ class Embed(Record):
     def __init__(self, dim, dim_out= None, name= 'embed'):
         if dim_out is None: dim_out = dim
         self.name = name
-        self.emb = tf.get_variable(name, (dim, dim_out))
+        self.kern = tf.get_variable(name, (dim, dim_out))
 
     def __call__(self, x, name= None):
-        return tf.gather(self.emb, x, name= name or self.name)
+        return tf.gather(self.kern, x, name= name or self.name)
 
 
 class Dense(Record):
