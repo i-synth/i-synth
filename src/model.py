@@ -224,10 +224,11 @@ class Transformer(Record):
             with tf.variable_scope('init'):
                 len_tgt = tf.shape(tgt)[1]
                 pos = position(len_tgt)
+                i = tf.constant(0)
                 x = tgt[:,:1]
+                v = w[:,:0]
                 y = x[:,1:]
                 z = tf.reshape(y, (tf.shape(y)[0], 0, 1))
-                v = tf.reshape(y, (tf.shape(y)[0], 0, dim))
             def autoreg(i, x, vs, y, z):
                 # i : ()              time step from 0 to t=len_tgt
                 # x : (b, 1, dim_tgt) frame at step i
@@ -248,12 +249,8 @@ class Transformer(Record):
             _, _, _, y, z = tf.while_loop(
                 lambda i, *_: i < len_tgt # todo stop when end is reached if not trainable
                 , autoreg
-                , (0, x, (v,)*len(decode), y, z)
-                , (tf.TensorShape(())
-                   , x.shape
-                   , (tf.TensorShape((None, None, dim)),)*len(decode)
-                   , y.shape
-                   , tf.TensorShape((None, None, 1)))
+                , (i, x, (v,)*len(decode), y, z)
+                , (i.shape, x.shape, (v.shape,)*len(decode), y.shape, tf.TensorShape((None, None, 1)))
                 , back_prop= trainable
                 , swap_memory= True
                 , name= 'autoreg')
