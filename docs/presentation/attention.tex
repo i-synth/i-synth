@@ -1,0 +1,73 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz-cd}
+\begin{document}
+
+autoregressive network
+
+\[x_{0 \ldots i} \to x_{i+1}\]
+
+\[\begin{tikzcd}
+    &x_{0} \ar[bend left]{r} \ar[bend right]{rr} \ar[bend left]{rrr} &x_{1} \ar[bend right]{r} \ar[bend left]{rr} &x_{2} \ar[bend left]{r} &x_{3}\\
+  \end{tikzcd}\]
+
+convolution
+
+\[\begin{tikzcd}
+    &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+    &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u}\\
+    \ar[red]{ur} &x_{0} \ar[blue]{u} \ar[red]{ur} &x_{1} \ar[blue]{u} \ar[red]{ur} &x_{2} \ar[blue]{u}\\
+  \end{tikzcd}\]
+
+recurrent
+
+\[\begin{tikzcd}
+    &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+    \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u}\\
+    &x_{0} \ar[blue]{u} &x_{1} \ar[blue]{u} &x_{2} \ar[blue]{u}\\
+  \end{tikzcd}\]
+
+recurrent attention
+
+\[\begin{tikzcd}
+    &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+    \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u}\\
+    &x_{0} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{urr} &x_{1} \ar[blue]{u} \ar[blue]{ur} &x_{2} \ar[blue]{u}\\
+  \end{tikzcd}\]
+
+recurrent attention redirected
+
+\[\begin{tikzcd}
+    \ar[dashed, red]{dr} &\hat{x}_{1} \ar[dashed, red]{dr} &\hat{x}_{2} \ar[dashed, red]{dr} &\hat{x}_{3}\\
+    &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u}\\
+    &x_{0} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{urr} &x_{1} \ar[blue]{u} \ar[blue]{ur} &x_{2} \ar[blue]{u}\\
+  \end{tikzcd}\]
+
+transformer
+
+\[\begin{tikzcd}
+    &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+    &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u}\\
+    &x_{0} \ar[red, bend left]{u} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{urr} &x_{1} \ar[red, bend left]{u} \ar[blue]{u} \ar[blue]{ur} &x_{2} \ar[red, bend left]{u} \ar[blue]{u}\\
+  \end{tikzcd}\]
+
+additive attention
+
+\[\begin{tikzcd}
+    x_{0 \ldots i} : vt \ar[blue]{ddd}{dv} \ar[blue]{r}{kv} &kt + k \ar{d}{\tanh} &x_{i} : q \ar[red]{l}{kq}\\
+    &kt \ar{d}{k} &\\
+    &t \ar{d}{\exp} &\\
+    d = dt \cdot t \ar[violet]{d}{vd} &t \ar{l}{\operatorname{normalize}_{1}} &\\
+    \hat{x}_{i+1} : v &&\\
+  \end{tikzcd}\]
+
+multiplicative attention
+
+\[\begin{tikzcd}
+    x_{0 \ldots i} : vt \ar[blue]{d}{dv} \ar[blue]{r}{kv} &kt \cdot^{T} k \ar{d}{\exp} &x_{i} : q \ar[red]{l}{kq}\\
+    d = dt \cdot t \ar[violet]{d}{vd} &t \ar{l}{\operatorname{normalize}_{1}} &\\
+    \hat{x}_{i+1} : v &&\\
+  \end{tikzcd}\]
+
+\end{document}
