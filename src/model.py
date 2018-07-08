@@ -255,7 +255,7 @@ class Transformer(Record):
                 , swap_memory= True
                 , name= 'autoreg')
             z = tf.squeeze(z, -1)
-        return Transformer(len_tgt= len_tgt, output= y, closed= z, **self)._pred()
+        return Transformer(len_tgt= len_tgt, output= y, closed= z, **self)._eval()
 
     def forcing(self, act= tf.nn.relu, trainable= True):
         """-> Transformer with new fields, teacher forcing
@@ -292,9 +292,9 @@ class Transformer(Record):
             y = frame(x, act)
         with tf.variable_scope('close_forcing'):
             z = tf.squeeze(close(x, act), -1)
-        return Transformer(output= y, closed= z, **self)._pred()
+        return Transformer(output= y, closed= z, **self)._eval()
 
-    def _pred(self):
+    def _eval(self):
         gold, output, smooth = self.gold, self.output, self.smooth
         ended, closed = self.ended, self.closed
         with tf.variable_scope('acc'):

@@ -75,7 +75,7 @@ autoreg_train = model_train.autoreg().train(warmup= epoch*2)
 # training #
 ############
 
-saver = tf.train.Saver()
+saver = tf.train.Saver(max_to_keep= None)
 sess = tf.InteractiveSession()
 wtr = tf.summary.FileWriter(join(logdir, "trial{}".format(trial)))
 
