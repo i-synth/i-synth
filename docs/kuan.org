@@ -371,7 +371,7 @@ neural machine translation by jointly learning to align and translate
 - hidden state as query vector
 - additive attention
 
-*** [[luong et al.][https://arxiv.org/pdf/1508.04025.pdf]]
+*** [[https://arxiv.org/pdf/1508.04025.pdf][luong et al.]]
 effective approaches to attention-based neural machine translation
 
 - multiplicative attention
