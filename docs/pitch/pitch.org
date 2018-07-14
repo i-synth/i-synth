@@ -88,9 +88,6 @@ assert np.allclose(x, x2)
 :BEAMER_env: frame
 :END:
 - lots of attention
-# local variables:
-# org-beamer-outline-frame-title: "outline"
-# end:
 * evaluation
 ** problem                                                          :B_frame:
 :PROPERTIES:
@@ -104,3 +101,6 @@ assert np.allclose(x, x2)
 - not to explode
 - to drop the loss
 - to output more than noises
+# local variables:
+# org-beamer-outline-frame-title: "outline"
+# end:

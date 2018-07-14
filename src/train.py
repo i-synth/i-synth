@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-trial      = '01'
+trial      = '0'
 len_cap    = 318
 dim_tgt    = 512
 batch_size = 2**4
@@ -77,14 +77,14 @@ autoreg_train = model_train.autoreg().train(warmup= epoch*2)
 
 saver = tf.train.Saver(max_to_keep= None)
 sess = tf.InteractiveSession()
-wtr = tf.summary.FileWriter(join(logdir, "trial{}".format(trial)))
+wtr = tf.summary.FileWriter(join(logdir, "{}".format(trial)))
 
 if ckpt:
-    saver.restore(sess, ckpt)
+    saver.restore(sess, "trial/model/{}{}".format(trial, ckpt))
 else:
     tf.global_variables_initializer().run()
 
-step_eval = epoch // 16
+step_eval = epoch // 8
 summ = tf.summary.merge(
     (tf.summary.scalar('step_acc',    forcing_valid.acc)
      , tf.summary.scalar('step_err0', forcing_valid.err0)
@@ -102,6 +102,6 @@ while True:
         # pick a training fn to run
         step = sess.run(forcing_train.step)
         if not step % step_eval: wtr.add_summary(sess.run(summ), step)
-    saver.save(sess, "trial/model/{}_{}".format(trial, step), write_meta_graph= False)
+    saver.save(sess, "trial/model/{}{}".format(trial, step), write_meta_graph= False)
     save("trial/pred/{}_{}_forcing.wav".format(step, trial), forcing_valid.output.eval(synth_forcing)[0])
     save("trial/pred/{}_{}_autoreg.wav".format(step, trial), autoreg_valid.output.eval(synth_autoreg)[0])
