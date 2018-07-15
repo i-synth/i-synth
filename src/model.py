@@ -192,7 +192,7 @@ class Transformer(Record):
         count_not_all = lambda x: tf.reduce_sum(tf.to_int32(~ tf.reduce_all(x, 0)))
         with tf.variable_scope('src'):
             src = src_ = placeholder(tf.int32, (None, None), src)
-            len_src = count_not_all(tf.equal(src, end)) + 1
+            len_src = count_not_all(tf.equal(src, end))
             src = src[:,:len_src]
         with tf.variable_scope('tgt'):
             tgt = tgt_ = placeholder(tf.float32, (None, None, dim_tgt), tgt)

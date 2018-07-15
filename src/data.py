@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 
-from os.path import getsize
 from util import comp, partial, PointedIndex
 from util_io import path, load_meta, load
 from util_np import np, vpack
@@ -19,5 +18,5 @@ np.save("trial/data/index", index.vec)
 np.save("trial/data/texts", texts)
 np.save("trial/data/names", names)
 
-# for name, gram in zip(names, grams):
-#     np.save("trial/data/grams/" + name, load(path(name)))
+for name in names:
+    np.save("trial/data/grams/" + name, load(path(name)))
