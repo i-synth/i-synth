@@ -60,3 +60,25 @@ def save(path, x, rate= 8000, hop= 256):
     x = np.concatenate((x, np.zeros_like(x[:1])))
     wav = librosa.istft(x, hop)
     librosa.output.write_wav(path, wav, rate)
+
+
+def load_boxcar(path, rate= 8000, nfft= 512, hop= 512, window= 'boxcar'):
+    """reads a wav file and returns the complex spectrogram.
+
+    the first axis are the time steps and the second axis the
+    frequency bins, with the first frequency bin removed.
+
+    """
+    wav, _ = librosa.load(path, rate)
+    frame = librosa.stft(wav, nfft, hop, window= window)
+    return frame[:-1].T
+
+
+def save_boxcar(path, x, rate= 8000, hop= 512, window= 'boxcar'):
+    """undoes `load`."""
+    assert 2 == x.ndim
+    if np.isrealobj(x): x = r2c(x)
+    x = x.T
+    x = np.concatenate((x, np.zeros_like(x[:1])))
+    wav = librosa.istft(x, hop, window= window)
+    librosa.output.write_wav(path, wav, rate)

@@ -12,7 +12,7 @@ from model import Transformer
 from os.path import expanduser, join
 from tqdm import tqdm
 from util import comp
-from util_io import path, load, save
+from util_io import path, save
 from util_np import np, vpack, c2r
 from util_tf import tf, batch
 
@@ -68,8 +68,8 @@ synth_autoreg = {autoreg_valid.src: src, autoreg_valid.tgt: tgt[:,:1], autoreg_v
 
 batch_fn = lambda src, names: (src, tf.py_func(load_batch, (names,), tf.float32))
 model_train = model.data(*batch((texts[split:], names[split:]), batch_size, fn= batch_fn), len_cap)
-forcing_train = model_train.forcing().train(warmup= epoch*2)
-autoreg_train = model_train.autoreg().train(warmup= epoch*2)
+forcing_train = model_train.forcing().train(warmup= epoch)
+# autoreg_train = model_train.autoreg().train(warmup= epoch)
 
 ############
 # training #
