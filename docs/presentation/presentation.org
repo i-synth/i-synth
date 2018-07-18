@@ -1,0 +1,251 @@
+#+OPTIONS: title:nil date:nil toc:nil author:nil email:nil
+#+STARTUP: beamer
+#+LaTeX_CLASS: beamer
+#+LATEX_HEADER: \setbeamertemplate{footline}[frame number]
+#+LATEX_HEADER: \usepackage{tikz-cd}
+#+LATEX_HEADER: \graphicspath{{image/}}
+#+LATEX_HEADER: \usepackage{caption}
+#+LATEX_HEADER: \usepackage{subcaption}
+#+LATEX_HEADER: \makeatletter\let\@@magyar@captionfix\relax\makeatother
+* i-synth                                                           :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+| Kuan Yu           | kuanyu@uni-potsdam.de |
+|                   |                       |
+| Simon Untergasser | todo                  |
+|                   |                       |
+| Jörg Schwartz     | todo                  |
+\hfill \today
+* outline                                                           :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+\tableofcontents
+* data
+** =LJSpeech-1.0=[fn:1]                                             :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- 13,100 autio clips
+- 1.11 sec to 10.10 sec
+- single speaker
+- with normalized transcription
+- first 12 clips for validation
+** clean up transcription                                           :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- inconsistent use of quotes and brackets
+- non-ascii characters
+- case
+** downsampling                                                     :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEGIN_EXPORT latex
+\begin{figure}
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{original.pdf}
+    \caption*{22050}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{downsampled.pdf}
+    \caption*{8000}
+  \end{subfigure}
+\end{figure}
+#+END_EXPORT
+* model
+** autoregressive model                                             :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:BEAMER_opt: fragile
+:END:
+- number of frequency bins \(f = 256\)
+- frame \(x_{i} : \mathbb{C}^{f} \simeq \mathbb{R}^{2f}\)
+- model \(x_{0 \ldots i} \to x_{i+1}\)
+#+BEGIN_EXPORT latex
+\[\begin{tikzcd}
+    &x_{0} \ar[bend left]{r} \ar[bend right]{rr} \ar[bend left]{rrr} &x_{1} \ar[bend right]{r} \ar[bend left]{rr} &x_{2} \ar[bend left]{r} &x_{3}\\
+  \end{tikzcd}\]
+#+END_EXPORT
+** choices                                                          :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:BEAMER_opt: fragile
+:END:
+#+BEGIN_EXPORT latex
+\begin{figure}
+  \begin{subfigure}{0.5\textwidth}
+    \[\begin{tikzcd}[column sep=small, row sep=small]
+        &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+        &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u}\\
+        \ar[blue]{ur} &x_{0} \ar[blue]{u} \ar[blue]{ur} &x_{1} \ar[blue]{u} \ar[blue]{ur} &x_{2} \ar[blue]{u}\\
+      \end{tikzcd}\]
+    \vspace*{-2ex}
+    \caption*{convolution}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \[\begin{tikzcd}[column sep=small, row sep=small]
+        &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+        \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u}\\
+        &x_{0} \ar[blue]{u} &x_{1} \ar[blue]{u} &x_{2} \ar[blue]{u}\\
+      \end{tikzcd}\]
+    \vspace*{-2ex}
+    \caption*{recurrent}
+  \end{subfigure}
+\end{figure}
+\begin{figure}
+  \begin{subfigure}{0.5\textwidth}
+    \[\begin{tikzcd}[column sep=small, row sep=small]
+        &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+        \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u} \ar[red]{r} &\blacksquare \ar[violet]{u}\\
+        &x_{0} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{urr} &x_{1} \ar[blue]{u} \ar[blue]{ur} &x_{2} \ar[blue]{u}\\
+      \end{tikzcd}\]
+    \vspace*{-2ex}
+    \caption*{recurrent with attention}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \[\begin{tikzcd}[column sep=small, row sep=small]
+        \ar[dashed, red]{dr} &\hat{x}_{1} \ar[dashed, red]{dr} &\hat{x}_{2} \ar[dashed, red]{dr} &\hat{x}_{3}\\
+        &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u}\\
+        &x_{0} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{urr} &x_{1} \ar[blue]{u} \ar[blue]{ur} &x_{2} \ar[blue]{u}\\
+      \end{tikzcd}\]
+    \vspace*{-2ex}
+    \caption*{redirect recurrent connection}
+  \end{subfigure}
+\end{figure}
+#+END_EXPORT
+** self-attention[fn:6]                                             :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:BEAMER_opt: fragile
+:END:
+#+BEGIN_EXPORT latex
+\begin{figure}
+  \begin{subfigure}{0.5\textwidth}
+    \[\begin{tikzcd}
+        &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+        &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u}\\
+        &x_{0} \ar[red, bend left]{u} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{urr} &x_{1} \ar[red, bend left]{u} \ar[blue]{u} \ar[blue]{ur} &x_{2} \ar[red, bend left]{u} \ar[blue]{u}\\
+      \end{tikzcd}\]
+    \caption*{decoder}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \[\begin{tikzcd}
+        &\hat{x}_{1} &\hat{x}_{2} &\hat{x}_{3}\\
+        &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u} &\blacksquare \ar[violet]{u}\\
+        &x_{0} \ar[red, bend left]{u} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{urr} &x_{1} \ar[red, bend left]{u} \ar[blue]{u} \ar[blue]{ur} \ar[blue]{ul} &x_{2} \ar[red, bend left]{u} \ar[blue]{u} \ar[blue]{ul} \ar[blue]{ull}\\
+      \end{tikzcd}\]
+    \caption*{encoder}
+  \end{subfigure}
+\end{figure}
+#+END_EXPORT
+** attention: additive[fn:3], dot-product[fn:4], key-value[fn:5]    :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:BEAMER_opt: fragile
+:END:
+time steps /t/, value dim /v/, key dim /k/, query dim /q/, model dim /d/
+#+BEGIN_EXPORT latex
+\begin{minipage}{.5\textwidth}
+  \[\begin{tikzcd}
+      vt \ar[blue]{dd}{dv} \ar[blue]{r}{kv} &kt + k \ar{d}{\tanh} &q \ar[red]{l}{kq}\\
+      &kt \ar{d}{k} &\\
+      dt \cdot t \ar[violet]{d}{vd} &t \ar{l}{\operatorname{softmax}}\\
+      v &&\\
+    \end{tikzcd}\]
+\end{minipage}%
+\begin{minipage}{.5\textwidth}
+  \vspace{8ex}
+  \[\begin{tikzcd}
+      vt \ar[blue]{d}{dv} \ar[blue]{r}{kv} &kt \cdot^{T} k \ar{dl}{\operatorname{softmax}} &q \ar[red]{l}{kq}\\
+      dt \cdot t \ar[violet]{d}{vd} &&\\
+      v &&\\
+    \end{tikzcd}\]
+\end{minipage}
+#+END_EXPORT
+** architecture based on transformer[fn:2]                          :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:BEAMER_opt: fragile
+:END:
+- w: transcript (characters)
+- p: position encoding (sinusoids)
+#+BEGIN_EXPORT latex
+\[\begin{tikzcd}
+    \ar[blue, dashed]{dddr} \ar[blue, dashed]{dr} &&\hat{x}&\\
+    \blacksquare \ar[violet]{u} &\blacksquare \ar[dashed]{r} &\ar[violet]{u} &\blacksquare \ar[dashed]{l}\\
+    \ar[blue, dashed, bend left]{u} \ar[red, bend right]{u} &\ar[red]{u} &\ar[dashed]{l} \ar[dashed]{r} &\ar[blue, dashed, bend left]{u} \ar[red, bend right]{u}\\
+    \blacksquare \ar[violet]{u} &\blacksquare \ar[dashed]{r} &\ar[violet]{u} &\blacksquare \ar[dashed]{l}\\
+    \ar[blue, dashed, bend left]{u} \ar[red, bend right]{u} &\ar[red]{u} &\ar[dashed]{l} \ar[dashed]{r} &\ar[blue, dashed, bend left]{u} \ar[red, bend right]{u}\\
+    w \ar[violet]{u} &p \ar[dashed]{ul} \ar[dashed]{ur} & x \ar[violet]{u} &\\
+  \end{tikzcd}\]
+#+END_EXPORT
+* status
+** results                                                          :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEGIN_EXPORT latex
+\begin{figure}
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{forcing.pdf}
+    \caption*{teacher forcing}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{autoreg.pdf}
+    \caption*{autoregressive}
+  \end{subfigure}
+\end{figure}
+#+END_EXPORT
+** boxcar                                                           :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEGIN_EXPORT latex
+\begin{figure}
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{boxcar.pdf}
+    \caption*{boxcar}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{boxcar_forcing.pdf}
+    \caption*{boxcar teacher forcing}
+  \end{subfigure}
+\end{figure}
+#+END_EXPORT
+** magnitude only                                                   :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+#+BEGIN_EXPORT latex
+\begin{figure}
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{magn_forcing.pdf}
+    \caption*{teacher forcing}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{magn_autoreg.pdf}
+    \caption*{autoregressive}
+  \end{subfigure}
+\end{figure}
+#+END_EXPORT
+* plan
+** plan                                                             :B_frame:
+:PROPERTIES:
+:BEAMER_env: frame
+:END:
+- steal from tacotron[fn:7]
+- complex algebra
+* Footnotes
+[fn:1] https://keithito.com/LJ-Speech-Dataset/
+[fn:2] https://arxiv.org/abs/1706.03762
+[fn:3] https://arxiv.org/abs/1409.0473
+[fn:4] https://arxiv.org/abs/1508.04025
+[fn:5] https://arxiv.org/abs/1702.04521
+[fn:6] https://arxiv.org/abs/1703.03130
+[fn:7] https://github.com/keithito/tacotron
+# local variables:
+# org-beamer-outline-frame-title: "outline"
+# end:
