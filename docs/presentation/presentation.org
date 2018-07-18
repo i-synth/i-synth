@@ -11,11 +11,11 @@
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
-| Kuan Yu           | kuanyu@uni-potsdam.de |
-|                   |                       |
-| Simon Untergasser | todo                  |
-|                   |                       |
-| Jörg Schwartz     | todo                  |
+| Kuan Yu           | kuanyu@uni-potsdam.de      |
+|                   |                            |
+| Simon Untergasser | untergasser@uni-potsdam.de |
+|                   |                            |
+| Jörg Schwartz     | jschwartz@uni-potsdam.de   |
 \hfill \today
 * outline                                                           :B_frame:
 :PROPERTIES:
@@ -27,7 +27,7 @@
 :PROPERTIES:
 :BEAMER_env: frame
 :END:
-- 13,100 autio clips
+- 13,100 audio clips
 - 1.11 sec to 10.10 sec
 - single speaker
 - with normalized transcription
@@ -190,12 +190,12 @@ time steps /t/, value dim /v/, key dim /k/, query dim /q/, model dim /d/
 #+BEGIN_EXPORT latex
 \begin{figure}
   \begin{subfigure}{0.5\textwidth}
-    \includegraphics[width=\linewidth,height=0.6\textheight]{forcing.pdf}
-    \caption*{teacher forcing}
-  \end{subfigure}%
-  \begin{subfigure}{0.5\textwidth}
     \includegraphics[width=\linewidth,height=0.6\textheight]{autoreg.pdf}
     \caption*{autoregressive}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{forcing.pdf}
+    \caption*{teacher forcing}
   \end{subfigure}
 \end{figure}
 #+END_EXPORT
@@ -222,12 +222,12 @@ time steps /t/, value dim /v/, key dim /k/, query dim /q/, model dim /d/
 #+BEGIN_EXPORT latex
 \begin{figure}
   \begin{subfigure}{0.5\textwidth}
-    \includegraphics[width=\linewidth,height=0.6\textheight]{magn_forcing.pdf}
-    \caption*{teacher forcing}
-  \end{subfigure}%
-  \begin{subfigure}{0.5\textwidth}
     \includegraphics[width=\linewidth,height=0.6\textheight]{magn_autoreg.pdf}
     \caption*{autoregressive}
+  \end{subfigure}%
+  \begin{subfigure}{0.5\textwidth}
+    \includegraphics[width=\linewidth,height=0.6\textheight]{magn_forcing.pdf}
+    \caption*{teacher forcing}
   \end{subfigure}
 \end{figure}
 #+END_EXPORT
@@ -237,7 +237,7 @@ time steps /t/, value dim /v/, key dim /k/, query dim /q/, model dim /d/
 :BEAMER_env: frame
 :END:
 - steal from tacotron[fn:7]
-- complex algebra
+- complex arithmetics
 * Footnotes
 [fn:1] https://keithito.com/LJ-Speech-Dataset/
 [fn:2] https://arxiv.org/abs/1706.03762
