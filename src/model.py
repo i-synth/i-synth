@@ -169,7 +169,7 @@ class Transformer(Record):
             , frame= Forward(dim_tgt, dim, dim_mid, act, 'frame')
             , close= Forward(      1, dim, dim_mid, act, 'close')
             , smooth= Smooth(smooth)
-            , dropout= Dropout(dropout, (None, 1, dim)))
+            , dropout= Dropout(dropout, (None, None, dim)))
 
     def data(self, src= None, tgt= None, len_cap= None):
         """-> Transformer with new fields

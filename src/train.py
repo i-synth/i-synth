@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 
-trial      = '0'
+trial      = 'm'
 len_cap    = 318
 dim_tgt    = 512
-batch_size = 2**4
+batch_size = 2**5
 ckpt       = None
 
 
@@ -68,14 +68,13 @@ synth_autoreg = {autoreg_valid.src: src, autoreg_valid.tgt: tgt[:,:1], autoreg_v
 
 batch_fn = lambda src, names: (src, tf.py_func(load_batch, (names,), tf.float32))
 model_train = model.data(*batch((texts[split:], names[split:]), batch_size, fn= batch_fn), len_cap)
-forcing_train = model_train.forcing().train(warmup= epoch)
-# autoreg_train = model_train.autoreg().train(warmup= epoch)
+forcing_train = model_train.forcing().train()
 
 ############
 # training #
 ############
 
-saver = tf.train.Saver(max_to_keep= None)
+saver = tf.train.Saver()
 sess = tf.InteractiveSession()
 wtr = tf.summary.FileWriter(join(logdir, "{}".format(trial)))
 
@@ -84,24 +83,25 @@ if ckpt:
 else:
     tf.global_variables_initializer().run()
 
-step_eval = epoch // 8
 summ = tf.summary.merge(
     (tf.summary.scalar('step_acc',    forcing_valid.acc)
      , tf.summary.scalar('step_err0', forcing_valid.err0)
      , tf.summary.scalar('step_err1', forcing_valid.err1)
      , tf.summary.scalar('step_err2', forcing_valid.err2)))
 
-forc = lambda: sess.run(forcing_train.up)
-bptt = lambda: sess.run(autoreg_train.up)
-def auto():
-    s, t, p = sess.run(        (autoreg_train.src,    autoreg_train.tgt_,    autoreg_train.output))
-    sess.run(forcing_train.up, {forcing_train.src: s, forcing_train.tgt_: t, forcing_train.tgt: p})
+# # bptt training and free running
+# autoreg_train = model_train.autoreg().train()
+# bptt = lambda: sess.run(autoreg_train.up)
+# def free():
+#     s, t, p = sess.run(        (autoreg_train.src,    autoreg_train.tgt_,    autoreg_train.output))
+#     sess.run(forcing_train.up, {forcing_train.src: s, forcing_train.tgt_: t, forcing_train.tgt: p})
 
-while True:
-    for _ in tqdm(range(epoch), ncols= 70):
-        # pick a training fn to run
+for _ in range(60):
+    for _ in range(60):
+        for _ in tqdm(range(epoch), ncols= 70):
+            sess.run(forcing_train.up)
         step = sess.run(forcing_train.step)
-        if not step % step_eval: wtr.add_summary(sess.run(summ), step)
-    saver.save(sess, "trial/model/{}{}".format(trial, step), write_meta_graph= False)
+        wtr.add_summary(sess.run(summ), step)
     save("trial/pred/{}_{}_forcing.wav".format(step, trial), forcing_valid.output.eval(synth_forcing)[0])
     save("trial/pred/{}_{}_autoreg.wav".format(step, trial), autoreg_valid.output.eval(synth_autoreg)[0])
+    saver.save(sess, "trial/model/{}{}".format(trial, step), write_meta_graph= False)
