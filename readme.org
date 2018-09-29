@@ -16,9 +16,9 @@ for the details about this project, see our [[docs/paper/paper.pdf][paper]]
 cd src
 #+END_SRC
 
-- download the [[https://keithito.com/LJ-Speech-Dataset/][lj speech dataset]] to =~/data/LJSpeech-1.0=
-
 - prepare the data
+
+you need the [[https://keithito.com/LJ-Speech-Dataset/][lj speech dataset]] in =~/data/LJSpeech-1.0=
 
 #+BEGIN_SRC bash :eval no
 mkdir trial trial/data
