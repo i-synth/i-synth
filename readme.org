@@ -1,0 +1,47 @@
+* i-synth
+
+for the details about this project, see our [[docs/paper/paper.pdf][paper]]
+
+** quick start
+
+*** dependencies
+
+- [[https://www.python.org/][python3]]
+- [[https://librosa.github.io/][librosa]]
+- [[https://www.tensorflow.org/][tensorflow]]
+
+*** to reproduce our results
+
+#+BEGIN_SRC bash :eval no
+cd src
+#+END_SRC
+
+- download the [[https://keithito.com/LJ-Speech-Dataset/][lj speech dataset]] to =~/data/LJSpeech-1.0=
+
+- prepare the data
+
+#+BEGIN_SRC bash :eval no
+mkdir trial trial/data
+./data.py
+#+END_SRC
+
+- train a new model
+
+#+BEGIN_SRC bash :eval no
+mkdir trial/model trial/pred
+./train.py
+#+END_SRC
+
+by default, these paths are used
+- =src/trial/model= for model checkpoints
+- =src/trial/pred= for predicted validation outputs
+- =~/cache/tensorboard-logdir/i-synth= for tensorboard summaries
+
+** content
+
+- [[docs][docs]]: paper and slides
+- [[src][src]]: code
+  + [[src/data.py][data.py]]: code for data preprocessing
+  + [[src/train.py][train.py]]: code for training, evaluating, and profiling
+  + [[src/model.py][model.py]]: the main implementation
+  + =util*.py=: various utilities
