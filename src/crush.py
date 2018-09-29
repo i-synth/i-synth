@@ -76,3 +76,72 @@ plt.show()
 for x, x2 in zip(w, w2):
     sd.play(x, sr, blocking= True)
     sd.play(x2, sr, blocking= True)
+
+
+
+
+from util_np import r2c
+from util_io import save, save_boxcar
+
+plot = lambda x: specshow(np.log(1e-8 + np.abs(x)))
+
+wav, sr = load(path('LJ001-0008'), sr= None)
+frame = librosa.stft(wav, 512, 256)
+plot(frame[:-1])
+plt.savefig("../docs/presentation/image/original.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+# wav = librosa.istft(frame, 256)
+# librosa.output.write_wav("trial/pred/original.wav", wav, sr)
+
+wav, sr = load(path('LJ001-0008'), sr= 8000)
+frame = librosa.stft(wav, 512, 256)
+plot(frame[:-1])
+plt.savefig("../docs/presentation/image/downsampled.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+# wav = librosa.istft(frame, 256)
+# librosa.output.write_wav("trial/pred/downsampled.wav", wav, sr)
+
+a = np.load("trial/pred/e_autoreg.npy")
+f = np.load("trial/pred/e_forcing.npy")
+a = r2c(a)
+f = r2c(f)
+
+# save("trial/pred/forcing_e.wav", f)
+# save("trial/pred/autoreg_e.wav", a)
+
+specshow(np.log(1e-8 + np.abs(f.T)))
+plt.savefig("../docs/presentation/image/forcing.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+specshow(np.log(1e-8 + np.abs(a.T)))
+plt.savefig("../docs/presentation/image/autoreg.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+
+frame = librosa.stft(wav, 512, 512, window= 'boxcar')
+plot(frame[:-1])
+plt.savefig("../docs/presentation/image/boxcar.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+# wav = librosa.istft(frame, 512, window= 'boxcar')
+# librosa.output.write_wav("trial/pred/boxcar.wav", wav, sr)
+
+a = np.load("trial/pred/eb_autoreg.npy")
+f = np.load("trial/pred/eb_forcing.npy")
+a = r2c(a)
+f = r2c(f)
+
+# save_boxcar("trial/pred/forcing_eb.wav", f)
+# save_boxcar("trial/pred/autoreg_eb.wav", a)
+
+specshow(np.log(1e-8 + np.abs(f.T)))
+plt.savefig("../docs/presentation/image/boxcar_forcing.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+specshow(np.log(1e-8 + np.abs(a.T)))
+plt.savefig("../docs/presentation/image/boxcar_autoreg.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+a = np.load("trial/pred/er_autoreg.npy")
+f = np.load("trial/pred/er_forcing.npy")
+
+specshow(np.log(1e-8 + np.abs(f.T)))
+plt.savefig("../docs/presentation/image/real_forcing.pdf", bbox_inches= 'tight', pad_inches= 0)
+
+specshow(np.log(1e-8 + np.abs(a.T)))
+plt.savefig("../docs/presentation/image/real_autoreg.pdf", bbox_inches= 'tight', pad_inches= 0)

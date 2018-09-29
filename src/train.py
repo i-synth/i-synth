@@ -84,10 +84,11 @@ else:
     tf.global_variables_initializer().run()
 
 summ = tf.summary.merge(
-    (tf.summary.scalar('step_acc',    forcing_valid.acc)
-     , tf.summary.scalar('step_err0', forcing_valid.err0)
-     , tf.summary.scalar('step_err1', forcing_valid.err1)
-     , tf.summary.scalar('step_err2', forcing_valid.err2)))
+    (tf.summary.scalar('step_err1', forcing_valid.err1)
+     , tf.summary.scalar('step_err2', forcing_valid.err2)
+     # , tf.summary.scalar('step_acc',    forcing_valid.acc)
+     # , tf.summary.scalar('step_err0', forcing_valid.err0)
+    ))
 
 # # bptt training and free running
 # autoreg_train = model_train.autoreg().train()

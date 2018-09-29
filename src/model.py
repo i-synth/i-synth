@@ -64,8 +64,10 @@ class DecodeBlock(Record):
     def __init__(self, dim, dim_mid, act, name):
         with tf.variable_scope(name):
             self.name = name
+            with tf.variable_scope('csl'):
+                self.csl = Attention(dim, layer= Forward, mid= dim_mid, act= act)
+                self.norm_csl = Normalize(dim)
             with tf.variable_scope('att'):
-                self.csl = Attention(dim, layer= Forward, mid= dim_mid, act= act, name= 'causal')
                 self.att = Attention(dim, layer= Forward, mid= dim_mid, act= act)
                 self.norm_att = Normalize(dim)
             with tf.variable_scope('fwd'):
@@ -74,7 +76,8 @@ class DecodeBlock(Record):
 
     def __call__(self, x, v, w, m, dropout, mask= None, name= None):
         with tf.variable_scope(name or self.name):
-            with tf.variable_scope('att'): x = self.norm_att(x + dropout(self.att(x, w, m) + self.csl(x, v, mask)))
+            with tf.variable_scope('csl'): x = self.norm_csl(x + dropout(self.csl(x, v, mask)))
+            with tf.variable_scope('att'): x = self.norm_att(x + dropout(self.att(x, w, m)))
             with tf.variable_scope('fwd'): x = self.norm_fwd(x + dropout(self.fwd(x)))
             return x
 
@@ -311,7 +314,7 @@ class Transformer(Record):
             diff = gold - output
             err1 = tf.reduce_mean(tf.reduce_sum(tf.abs(diff), -1))
             err2 = tf.reduce_mean(tf.reduce_sum(tf.square(diff), -1))
-            loss = err0 + err2
+            loss = err1 + err2
         return Transformer(acc= acc, err0= err0, err1= err1, err2= err2, loss= loss, **self)
 
     def train(self, warmup= 4e3, beta1= 0.9, beta2= 0.98, epsilon= 1e-9):
